@@ -25,7 +25,7 @@ export interface Video {
   hls_url?: string
   duration?: number
   price: number
-  access_level: 0 | 1 // 0 = free, 1 = paid
+  access_level: 0 | 1
   category_id: number
   is_active: boolean
   created_at: string
@@ -42,6 +42,11 @@ export interface Purchase {
   video: Video
 }
 
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+}
+
 export interface VideoStats {
   video_id: number
   title: string
@@ -55,26 +60,4 @@ export interface AdminStats {
   total_videos: number
   total_revenue: number
   recent_purchases: Purchase[]
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface RegisterData {
-  email: string
-  username: string
-  password: string
-  full_name?: string
-}
-
-export interface AuthResponse {
-  access_token: string
-  token_type: string
-}
-
-export interface ApiError {
-  detail: string
-  error_code?: string
 }

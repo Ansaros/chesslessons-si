@@ -1,95 +1,81 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
+import Image from "next/image"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { Video, Purchase } from "@/lib/types"
-import { formatPrice, formatDuration, getVideoThumbnail, canAccessVideo } from "@/lib/utils"
-import { Play, Lock, Clock } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import type { Video } from "@/types"
+import { Clock, Lock, Play } from "lucide-react"
+import { formatDuration, formatPrice } from "@/lib/utils"
 
 interface VideoCardProps {
   video: Video
-  purchases?: Purchase[]
-  onPurchase?: (video: Video) => void
+  showCategory?: boolean
 }
 
-export default function VideoCard({ video, purchases = [], onPurchase }: VideoCardProps) {
-  const hasAccess = canAccessVideo(video, purchases)
-  const isFree = video.access_level === 0
+export function VideoCard({ video, showCategory = true }: VideoCardProps) {
+  const isPaid = video.access_level === 1 && video.price > 0
 
   return (
-    <Card className="group hover:shadow-lg transition-shadow duration-200">
-      <div className="relative aspect-video overflow-hidden rounded-t-lg">
+    <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="relative aspect-video overflow-hidden">
         <Image
-          src={getVideoThumbnail(video) || "/placeholder.svg"}
+          src={video.thumbnail_url || "/placeholder.svg?height=200&width=300"}
           alt={video.title}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-200"
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
-
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
-
-        {/* Play Button */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center">
-            <Play className="w-8 h-8 text-primary ml-1" />
-          </div>
+        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <Button size="sm" className="rounded-full">
+            <Play className="h-4 w-4 mr-1" />
+            Смотреть
+          </Button>
         </div>
 
-        {/* Duration */}
         {video.duration && (
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
-            <Clock className="w-3 h-3" />
-            <span>{formatDuration(video.duration)}</span>
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+            <Clock className="h-3 w-3 inline mr-1" />
+            {formatDuration(video.duration)}
           </div>
         )}
 
-        {/* Access Level Badge */}
-        <div className="absolute top-2 left-2">
-          {isFree ? (
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              Бесплатно
+        {isPaid && (
+          <div className="absolute top-2 left-2">
+            <Badge variant="secondary" className="bg-yellow-500 text-black">
+              <Lock className="h-3 w-3 mr-1" />
+              Платный
             </Badge>
-          ) : (
-            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-              {formatPrice(video.price)}
-            </Badge>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <CardContent className="p-4">
         <div className="space-y-2">
-          <h3 className="font-semibold text-lg line-clamp-2 group-hover:text-primary transition-colors">
-            {video.title}
-          </h3>
-
-          {video.description && <p className="text-sm text-gray-600 line-clamp-2">{video.description}</p>}
-
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>{video.category.name}</span>
-            <span>{new Date(video.created_at).toLocaleDateString("ru-RU")}</span>
-          </div>
+          {showCategory && (
+            <Badge variant="outline" className="text-xs">
+              {video.category.name}
+            </Badge>
+          )}
+          <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">{video.title}</h3>
+          {video.description && <p className="text-sm text-muted-foreground line-clamp-2">{video.description}</p>}
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-0">
-        {hasAccess || isFree ? (
-          <Link href={`/videos/${video.id}`} className="w-full">
-            <Button className="w-full">
-              <Play className="w-4 h-4 mr-2" />
-              Смотреть
-            </Button>
-          </Link>
-        ) : (
-          <Button className="w-full" onClick={() => onPurchase?.(video)} variant="outline">
-            <Lock className="w-4 h-4 mr-2" />
-            Купить за {formatPrice(video.price)}
-          </Button>
-        )}
+      <CardFooter className="p-4 pt-0 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          {isPaid ? (
+            <span className="font-bold text-lg text-primary">{formatPrice(video.price)} ₸</span>
+          ) : (
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              Бесплатно
+            </Badge>
+          )}
+        </div>
+
+        <Button asChild size="sm">
+          <Link href={`/videos/${video.id}`}>Подробнее</Link>
+        </Button>
       </CardFooter>
     </Card>
   )

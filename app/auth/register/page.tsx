@@ -1,194 +1,192 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { authApi } from "@/lib/api"
-import { getErrorMessage } from "@/lib/utils"
-import { toast } from "sonner"
-import { Eye, EyeOff, Crown } from "lucide-react"
-
-const registerSchema = z
-  .object({
-    email: z.string().email("Введите корректный email"),
-    username: z.string().min(3, "Имя пользователя должно содержать минимум 3 символа"),
-    full_name: z.string().optional(),
-    password: z.string().min(8, "Пароль должен содержать минимум 8 символов"),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Пароли не совпадают",
-    path: ["confirmPassword"],
-  })
-
-type RegisterForm = z.infer<typeof registerSchema>
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuthStore } from "@/stores/auth-store"
+import { useToast } from "@/hooks/use-toast"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 export default function RegisterPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const { register, isLoading } = useAuthStore()
+
+  const [formData, setFormData] = useState({
+    email: "",
+    username: "",
+    full_name: "",
+    password: "",
+    confirmPassword: "",
+  })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-  })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  const onSubmit = async (data: RegisterForm) => {
-    setIsLoading(true)
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Ошибка",
+        description: "Пароли не совпадают",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      await authApi.register({
-        email: data.email,
-        username: data.username,
-        password: data.password,
-        full_name: data.full_name,
+      await register({
+        email: formData.email,
+        username: formData.username,
+        password: formData.password,
+        full_name: formData.full_name || undefined,
       })
 
-      toast.success("Регистрация успешна! Теперь войдите в систему.")
-      router.push("/auth/login")
-    } catch (error) {
-      toast.error(getErrorMessage(error))
-    } finally {
-      setIsLoading(false)
+      toast({
+        title: "Регистрация успешна",
+        description: "Добро пожаловать в ChessLessons!",
+      })
+      router.push("/")
+    } catch (error: any) {
+      toast({
+        title: "Ошибка регистрации",
+        description: error.response?.data?.detail || "Не удалось создать аккаунт",
+        variant: "destructive",
+      })
     }
   }
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }))
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo */}
-        <div className="text-center">
-          <Link href="/" className="flex items-center justify-center space-x-2">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <Crown className="w-7 h-7 text-white" />
+    <div className="container flex items-center justify-center min-h-[calc(100vh-8rem)] py-8">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">Создать аккаунт</CardTitle>
+          <CardDescription className="text-center">Зарегистрируйтесь, чтобы начать изучение шахмат</CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="your@email.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
             </div>
-            <span className="text-2xl font-bold text-gray-900">ChessLessons</span>
-          </Link>
-        </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Регистрация</CardTitle>
-            <CardDescription>Создайте аккаунт для доступа к урокам</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
+            <div className="space-y-2">
+              <Label htmlFor="username">Имя пользователя</Label>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                placeholder="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Полное имя (необязательно)</Label>
+              <Input
+                id="full_name"
+                name="full_name"
+                type="text"
+                placeholder="Ваше полное имя"
+                value={formData.full_name}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  {...register("email")}
-                  className={errors.email ? "border-red-500" : ""}
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Создайте пароль"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
                 />
-                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                  Имя пользователя *
-                </label>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
+              <div className="relative">
                 <Input
-                  id="username"
-                  type="text"
-                  placeholder="username"
-                  {...register("username")}
-                  className={errors.username ? "border-red-500" : ""}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Повторите пароль"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
                 />
-                {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
-
-              <div>
-                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Полное имя
-                </label>
-                <Input id="full_name" type="text" placeholder="Ваше полное имя" {...register("full_name")} />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Пароль *
-                </label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Минимум 8 символов"
-                    {...register("password")}
-                    className={errors.password ? "border-red-500 pr-10" : "pr-10"}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-                {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                  Подтвердите пароль *
-                </label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Повторите пароль"
-                    {...register("confirmPassword")}
-                    className={errors.confirmPassword ? "border-red-500 pr-10" : "pr-10"}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
-                )}
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Регистрация..." : "Зарегистрироваться"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Уже есть аккаунт?{" "}
-                <Link href="/auth/login" className="text-primary hover:underline">
-                  Войти
-                </Link>
-              </p>
             </div>
           </CardContent>
-        </Card>
-      </div>
+
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Создание аккаунта...
+                </>
+              ) : (
+                "Создать аккаунт"
+              )}
+            </Button>
+
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">Уже есть аккаунт? </span>
+              <Link href="/auth/login" className="text-primary hover:underline">
+                Войти
+              </Link>
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   )
 }

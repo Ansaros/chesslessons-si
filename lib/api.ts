@@ -1,20 +1,8 @@
-import axios, { type AxiosError } from "axios"
-import Cookies from "js-cookie"
-import type {
-  User,
-  Video,
-  Category,
-  Purchase,
-  LoginCredentials,
-  RegisterData,
-  AuthResponse,
-  VideoStats,
-  AdminStats,
-} from "./types"
+import axios from "axios"
+import type { AuthResponse, User, Video, Category, Purchase, AdminStats, VideoStats } from "@/types"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-// Создаем экземпляр axios
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -22,22 +10,21 @@ const api = axios.create({
   },
 })
 
-// Интерцептор для добавления токена
+// Interceptor для добавления токена
 api.interceptors.request.use((config) => {
-  const token = Cookies.get("access_token")
+  const token = localStorage.getItem("access_token")
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
-// Интерцептор для обработки ошибок
+// Interceptor для обработки ошибок
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  (error) => {
     if (error.response?.status === 401) {
-      // Удаляем токен и перенаправляем на логин
-      Cookies.remove("access_token")
+      localStorage.removeItem("access_token")
       window.location.href = "/auth/login"
     }
     return Promise.reject(error)
@@ -45,192 +32,78 @@ api.interceptors.response.use(
 )
 
 // Auth API
-export const authApi = {
-  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await api.post("/api/auth/login", credentials)
-    return response.data
-  },
+export const authAPI = {
+  register: (data: { email: string; username: string; password: string; full_name?: string }) =>
+    api.post<User>("/api/auth/register", data),
 
-  register: async (data: RegisterData): Promise<User> => {
-    const response = await api.post("/api/auth/register", data)
-    return response.data
-  },
+  login: (data: { email: string; password: string }) => api.post<AuthResponse>("/api/auth/login", data),
 
-  getMe: async (): Promise<User> => {
-    const response = await api.get("/api/auth/me")
-    return response.data
-  },
+  getProfile: () => api.get<User>("/api/auth/me"),
 }
 
 // Videos API
-export const videosApi = {
-  getVideos: async (params?: {
-    category_id?: number
-    access_level?: 0 | 1
-    skip?: number
-    limit?: number
-  }): Promise<Video[]> => {
-    const response = await api.get("/api/videos", { params })
-    return response.data
-  },
+export const videosAPI = {
+  getVideos: (params?: { category_id?: number; access_level?: number; skip?: number; limit?: number }) =>
+    api.get<Video[]>("/api/videos", { params }),
 
-  getVideo: async (id: number): Promise<Video> => {
-    const response = await api.get(`/api/videos/${id}`)
-    return response.data
-  },
+  getVideo: (id: number) => api.get<Video>(`/api/videos/${id}`),
 
-  getVideoStream: async (
-    id: number,
-  ): Promise<{
-    hls_url: string
-    video_url: string
-    title: string
-  }> => {
-    const response = await api.get(`/api/videos/${id}/stream`)
-    return response.data
-  },
+  getVideoStream: (id: number) =>
+    api.get<{ hls_url: string; video_url: string; title: string }>(`/api/videos/${id}/stream`),
 
-  getVideosByCategory: async (
-    categoryId: number,
-    params?: {
-      skip?: number
-      limit?: number
-    },
-  ): Promise<Video[]> => {
-    const response = await api.get(`/api/videos/category/${categoryId}`, { params })
-    return response.data
-  },
+  getVideosByCategory: (categoryId: number, params?: { skip?: number; limit?: number }) =>
+    api.get<Video[]>(`/api/videos/category/${categoryId}`, { params }),
 }
 
 // Categories API
-export const categoriesApi = {
-  getCategories: async (): Promise<Category[]> => {
-    const response = await api.get("/api/categories")
-    return response.data
-  },
+export const categoriesAPI = {
+  getCategories: () => api.get<Category[]>("/api/categories"),
 
-  getCategory: async (id: number): Promise<Category> => {
-    const response = await api.get(`/api/categories/${id}`)
-    return response.data
-  },
+  getCategory: (id: number) => api.get<Category>(`/api/categories/${id}`),
 }
 
-// Purchases API
-export const purchasesApi = {
-  createPurchase: async (data: {
-    video_id: number
-    payment_method: string
-  }): Promise<{
-    purchase_id: number
-    payment_url: string
-    status: string
-  }> => {
-    const response = await api.post("/api/payments/purchase", data)
-    return response.data
-  },
+// Payments API
+export const paymentsAPI = {
+  createPurchase: (data: { video_id: number; payment_method: string }) =>
+    api.post<{ purchase_id: number; payment_url: string; status: string }>("/api/payments/purchase", data),
 
-  getPurchases: async (): Promise<Purchase[]> => {
-    const response = await api.get("/api/payments/purchases")
-    return response.data
-  },
+  getPurchases: () => api.get<Purchase[]>("/api/payments/purchases"),
 
-  verifyPurchase: async (
-    purchaseId: number,
-  ): Promise<{
-    purchase_id: number
-    status: string
-    video_id: number
-    amount: number
-  }> => {
-    const response = await api.post(`/api/payments/purchases/${purchaseId}/verify`)
-    return response.data
-  },
+  verifyPurchase: (purchaseId: number) =>
+    api.post<{ purchase_id: number; status: string; video_id: number; amount: number }>(
+      `/api/payments/purchases/${purchaseId}/verify`,
+    ),
 }
 
 // Users API
-export const usersApi = {
-  getProfile: async (): Promise<User> => {
-    const response = await api.get("/api/users/profile")
-    return response.data
-  },
+export const usersAPI = {
+  getProfile: () => api.get<User>("/api/users/profile"),
 
-  updateProfile: async (data: { full_name: string }): Promise<{ message: string }> => {
-    const response = await api.put("/api/users/profile", data)
-    return response.data
-  },
+  updateProfile: (data: { full_name: string }) => api.put("/api/users/profile", data),
 
-  getWatchHistory: async (): Promise<
-    Array<{
-      video_id: number
-      video_title: string
-      viewed_at: string
-      watch_duration?: number
-    }>
-  > => {
-    const response = await api.get("/api/users/watch-history")
-    return response.data
-  },
+  getPurchases: () => api.get<Purchase[]>("/api/users/purchases"),
+
+  getWatchHistory: () => api.get("/api/users/watch-history"),
 }
 
 // Admin API
-export const adminApi = {
-  getStats: async (): Promise<AdminStats> => {
-    const response = await api.get("/api/admin/stats")
-    return response.data
-  },
+export const adminAPI = {
+  getStats: () => api.get<AdminStats>("/api/admin/stats"),
 
-  getVideoStats: async (): Promise<VideoStats[]> => {
-    const response = await api.get("/api/admin/videos/stats")
-    return response.data
-  },
+  getVideoStats: () => api.get<VideoStats[]>("/api/admin/videos/stats"),
 
-  uploadVideo: async (
-    formData: FormData,
-  ): Promise<{
-    message: string
-    video_id: number
-    video_url: string
-    hls_url: string
-  }> => {
-    const response = await api.post("/api/admin/videos/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    })
-    return response.data
-  },
+  uploadVideo: (formData: FormData) =>
+    api.post("/api/admin/videos/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 
-  updateVideo: async (id: number, data: Partial<Video>): Promise<Video> => {
-    const response = await api.put(`/api/admin/videos/${id}`, data)
-    return response.data
-  },
+  updateVideo: (id: number, data: Partial<Video>) => api.put<Video>(`/api/admin/videos/${id}`, data),
 
-  deleteVideo: async (id: number): Promise<{ message: string }> => {
-    const response = await api.delete(`/api/admin/videos/${id}`)
-    return response.data
-  },
+  deleteVideo: (id: number) => api.delete(`/api/admin/videos/${id}`),
 
-  getUsers: async (params?: {
-    skip?: number
-    limit?: number
-  }): Promise<User[]> => {
-    const response = await api.get("/api/admin/users", { params })
-    return response.data
-  },
+  getUsers: (params?: { skip?: number; limit?: number }) => api.get<User[]>("/api/admin/users", { params }),
 
-  updateUserRole: async (userId: number, role: string): Promise<{ message: string }> => {
-    const response = await api.put(`/api/admin/users/${userId}/role`, { role })
-    return response.data
-  },
-
-  createCategory: async (data: {
-    name: string
-    description?: string
-    slug: string
-  }): Promise<Category> => {
-    const response = await api.post("/api/categories", data)
-    return response.data
-  },
+  updateUserRole: (userId: number, role: string) => api.put(`/api/admin/users/${userId}/role`, { role }),
 }
 
 export default api
