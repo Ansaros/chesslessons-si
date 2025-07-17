@@ -14,7 +14,7 @@ from src.modules.auth.schemas import (
     ChangePassword
 )
 
-router = APIRouter(prefix="/auth", tags=["Authorization"])
+router = APIRouter()
 
 
 @router.post("/register", response_model=TokenResponse, summary="Register a new user")
