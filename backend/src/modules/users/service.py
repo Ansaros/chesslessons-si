@@ -16,10 +16,14 @@ class UserService:
         chess_level: str,
         db: AsyncSession
     ) -> UserTable:
-        existing = await self.database.get_objects(db, email=email)
-        if existing:
-            raise HTTPException(status_code=400, detail="User with this email already exists")
-
+        try:
+            existing = await self.database.get_objects(db, email=email)
+            if existing:
+                raise HTTPException(status_code=400, detail="User with this email already exists")
+        except HTTPException as e:
+            if e.status_code != 404:
+                raise
+        
         return await self.database.create(db, obj_in={
             "email": email,
             "hashed_password": hashed_password,
