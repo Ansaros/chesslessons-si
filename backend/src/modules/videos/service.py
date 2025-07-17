@@ -12,38 +12,32 @@ class VideoService:
         self.database = database
 
     async def create_video(self, data: VideoCreate, db: AsyncSession) -> VideoTable:
-        return await self.database.create(db, obj_in=data)
-
-    async def update_video(self, video_id: UUID, data: VideoUpdate, db: AsyncSession) -> VideoTable:
-        db_obj = await self.database.get(db, id=video_id)
-        return await self.database.update(db, db_obj=db_obj, obj_in=data)
+        return await self.database.create(db, data)
 
     async def get_by_id(self, video_id: UUID, db: AsyncSession) -> VideoTable:
-        return await self.database.get(db, id=video_id)
+        return await self.database.get(db, video_id)
 
-    async def get_all(self, db: AsyncSession) -> List[VideoTable]:
-        return await self.database.get_multi(db)
+    async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoTable]:
+        return await self.database.get_multi(db, skip=skip, limit=limit)
 
-    async def get_available_for_user(
-        self,
-        user_id: UUID,
-        db: AsyncSession,
-        filters: VideoFilter | None = None
-    ) -> List[VideoTable]:
-        free_videos = await self.database.get_objects(db, return_many=True, access_level=0)
-        purchased_ids = await self._get_user_purchased_video_ids(user_id, db)
-        purchased_videos = await self.database.get_by_ids(db, ids=purchased_ids) if purchased_ids else []
+    async def update_video(self, video_id: UUID, data: VideoUpdate, db: AsyncSession) -> VideoTable:
+        db_obj = await self.database.get(db, video_id)
+        return await self.database.update(db, db_obj=db_obj, obj_in=data)
 
-        combined = {v.id: v for v in free_videos + purchased_videos}.values()
+    async def delete_video(self, video_id: UUID, db: AsyncSession) -> VideoTable:
+        return await self.database.remove(db, id=video_id)
 
-        if filters:
-            if filters.access_level is not None:
-                combined = [v for v in combined if v.access_level == filters.access_level]
-            if filters.chess_level is not None:
-                combined = [v for v in combined if v.level_required == filters.chess_level]
+    async def get_videos_by_category(self, category_id: UUID, db: AsyncSession) -> list[VideoTable]:
+        return await self.database.get_objects(db, return_many=True, category_id=category_id)
 
-        return list(combined)
+    async def get_videos_by_level(self, level: str, db: AsyncSession) -> list[VideoTable]:
+        return await self.database.get_objects(db, return_many=True, level_required=level)
 
-    async def _get_user_purchased_video_ids(self, user_id: UUID, db: AsyncSession) -> list[UUID]:
-        # Заглушка — логика покупок будет позже
-        return []
+    async def get_free_videos(self, db: AsyncSession) -> list[VideoTable]:
+        return await self.database.get_objects(db, return_many=True, access_level=0)
+
+    async def get_paid_videos(self, db: AsyncSession) -> list[VideoTable]:
+        return await self.database.get_objects(db, return_many=True, access_level=1)
+
+    async def get_subscription_videos(self, db: AsyncSession) -> list[VideoTable]:
+        return await self.database.get_objects(db, return_many=True, access_level=2)

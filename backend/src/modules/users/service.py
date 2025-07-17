@@ -35,10 +35,6 @@ class UserService:
         return await self.database.get_objects(db, email=email)
 
 
-    async def get_by_id(self, user_id: UUID, db: AsyncSession) -> UserTable:
-        return await self.database.get(db, id=user_id)
-
-
     async def update_user_password(self, user_id: UUID, hashed_password: str, db: AsyncSession) -> UserTable:
-        user = await self.get_by_id(user_id, db)
+        user = await self.database.get(db, user_id)
         return await self.database.update(db, db_obj=user, obj_in={"hashed_password": hashed_password})
