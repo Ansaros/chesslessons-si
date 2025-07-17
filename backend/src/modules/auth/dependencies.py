@@ -6,8 +6,8 @@ from src.models import UserTable
 from src.core.database import get_db
 from src.core.dependencies import get_config
 from src.modules.auth.service import AuthService
-from src.modules.users.service import UserService
 from src.modules.auth.jwt_service import JWTService
+from src.modules.users.dependencies import get_user_service
 from src.modules.auth.password_manager import PasswordManager
 
 token_scheme = HTTPBearer(auto_error=True)
@@ -22,7 +22,7 @@ def get_auth_service() -> AuthService:
             refresh_expiry=get_config().REFRESH_TOKEN_EXPIRE_MINUTES,
         ),
         password_manager=PasswordManager(),
-        user_service=UserService(),
+        user_service=get_user_service(),
     )
 
 
