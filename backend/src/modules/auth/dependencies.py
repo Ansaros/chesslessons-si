@@ -39,3 +39,9 @@ async def get_current_user(
 
 def get_bearer_token(credentials: HTTPAuthorizationCredentials = Depends(token_scheme)) -> str:
     return credentials.credentials
+
+
+def get_admin_user(user: UserTable = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return user
