@@ -107,7 +107,7 @@ class VideoService:
             Filename=path,
             Bucket=self.config.SPACES_BUCKET,
             Key=key,
-            ExtraArgs={а"ContentType": content_type},
+            ExtraArgs={"ContentType": content_type},
         )
 
     async def get_by_id(self, video_id: UUID, db: AsyncSession) -> VideoTable:
