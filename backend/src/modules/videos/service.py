@@ -1,6 +1,9 @@
 import os
 import uuid
+
 import boto3
+from botocore.exceptions import ClientError
+
 import shutil
 import asyncio
 import tempfile
@@ -11,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import UploadFile
 
+from .schemas import VideoRead
 from src.models import VideoTable
+from src.core.logger import logger
 from src.core.config import Config
 from src.modules.videos.crud import VideoDatabase
 from src.modules.videos.schemas import VideoUpdate
@@ -113,8 +118,9 @@ class VideoService:
     async def get_by_id(self, video_id: UUID, db: AsyncSession) -> VideoTable:
         return await self.database.get(db, video_id)
 
-    async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoTable]:
-        return await self.database.get_multi(db, skip=skip, limit=limit)
+    async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoRead]:
+        videos = await self.database.get_multi(db, skip, limit)
+        return [self._attach_presigned_urls(video) for video in videos]
 
     async def update_video(self, video_id: UUID, data: VideoUpdate, db: AsyncSession) -> VideoTable:
         db_obj = await self.database.get(db, video_id)
@@ -137,3 +143,35 @@ class VideoService:
 
     async def get_subscription_videos(self, db: AsyncSession) -> list[VideoTable]:
         return await self.database.get_objects(db, return_many=True, access_level=2)
+
+    def _generate_presigned_url(self, key: str, expires: int = 600) -> str:
+        try:
+            return self.s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.config.SPACES_BUCKET, "Key": key},
+                ExpiresIn=expires,
+            )
+        except ClientError as e:
+            logger.error(f"Error generating presigned URL: {e}")
+            return ""
+
+    def _attach_presigned_urls(self, video: VideoTable) -> VideoRead:
+        def extract_key(url: str) -> str:
+            base = f"{self.config.SPACES_ENDPOINT}/{self.config.SPACES_BUCKET}/"
+            return url.replace(base, "") if url and url.startswith(base) else ""
+
+        preview_key = extract_key(video.preview_url)
+        hls_key = extract_key(video.hls_url)
+
+        return VideoRead(
+            id=video.id,
+            title=video.title,
+            description=video.description,
+            preview_url=self._generate_presigned_url(preview_key),
+            hls_url=self._generate_presigned_url(hls_key),
+            access_level=video.access_level,
+            level_required=video.level_required,
+            price=video.price,
+            category_id=video.category_id,
+            created_at=video.created_at,
+        )

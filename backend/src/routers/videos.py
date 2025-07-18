@@ -36,15 +36,15 @@ async def create_video(
     )
 
 
-# @router.get("/", response_model=ListResponse[VideoRead], summary="Get all videos")
-# async def get_all_videos(
-#     skip: int = Query(0, ge=0),
-#     limit: int = Query(100, le=1000),
-#     db: AsyncSession = Depends(get_db),
-#     video_service: VideoService = Depends(get_video_service),
-# ):
-#     videos = await video_service.get_all_videos(db, skip=skip, limit=limit)
-#     return ListResponse[VideoRead](data=videos, total=len(videos))
+@router.get("/", response_model=ListResponse[VideoRead], summary="Get all videos")
+async def get_all_videos(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    video_service: VideoService = Depends(get_video_service),
+):
+    videos = await video_service.get_many(db, skip=skip, limit=limit)
+    return ListResponse[VideoRead](data=videos, total=len(videos))
 
 
 @router.get("/{video_id}", response_model=VideoRead, summary="Get video by ID")
