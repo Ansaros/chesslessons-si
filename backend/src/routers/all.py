@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from src.routers.auth import router as auth_router
 from src.routers.admin import router as admin_router
-from src.routers.videos import router as videos_router
+# from src.routers.videos import router as videos_router
 
 router = APIRouter()
 
