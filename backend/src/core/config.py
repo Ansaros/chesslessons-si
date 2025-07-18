@@ -9,7 +9,6 @@ class Config:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 43200
     SECRET_KEY: str = os.getenv("SECRET_KEY")
-    OAUTH2_TOKEN_URL: str = "/api/v1/auth/login"
 
     # === GENERAL SETTINGS ===
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
@@ -19,4 +18,8 @@ class Config:
     DATABASE_URL: str = os.getenv("DATABASE_URL")
 
     # === STORAGE ===
-    
+    SPACES_KEY: str = os.getenv("SPACES_KEY")
+    SPACES_SECRET: str = os.getenv("SPACES_SECRET")
+    SPACES_REGION: str = os.getenv("SPACES_REGION")
+    SPACES_BUCKET: str = os.getenv("SPACES_BUCKET")
+    SPACES_ENDPOINT: str = os.getenv("SPACES_ENDPOINT")

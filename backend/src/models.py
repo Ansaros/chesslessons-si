@@ -58,7 +58,7 @@ class VideoTable(Base):
     access_level = Column(Integer, default=0)  # FREE / ONE_TIME / SUBSCRIPTION
     level_required = Column(String)  # Beginner / Amateur / etc
     price = Column(Numeric, nullable=True)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"))
+    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
