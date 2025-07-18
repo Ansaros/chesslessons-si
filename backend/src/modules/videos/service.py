@@ -91,8 +91,8 @@ class VideoService:
         command = [
             "ffmpeg",
             "-i", input_path,
-            "-codec:V", "libx264",
-            "-codec:a", "aac",
+            "-c:v", "copy",
+            "-c:a", "copy",
             "-start_number", "0",
             "-hls_time", "10",
             "-hls_list_size", "0",
