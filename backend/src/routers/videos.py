@@ -43,7 +43,7 @@ async def get_all_videos(
     db: AsyncSession = Depends(get_db),
     video_service: VideoService = Depends(get_video_service),
 ):
-    videos = await video_service.get_many(db, skip=skip, limit=limit)
+    videos = await video_service.get_many(skip, limit, db)
     return ListResponse[VideoRead](data=videos, total=len(videos))
 
 
