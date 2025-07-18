@@ -41,9 +41,8 @@ async def get_db():
             await session.commit()
         except SQLAlchemyError as e:
             logger.error(f"Database error: {e}")
-            try:
-                await session.rollback()
-            except Exception as rollback_exc:
-                logger.warning(f"Error during DB rollback: {rollback_exc}")
+            await session.rollback()
+            raise
+
         finally:
             logger.debug("Async DB session closed.")
