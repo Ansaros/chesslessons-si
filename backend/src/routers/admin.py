@@ -13,7 +13,7 @@ from src.modules.videos.schemas import VideoCreate, VideoUpdate, VideoRead
 
 router = APIRouter()
 
-@router.post("videos/", response_model=VideoRead, summary="Upload a new video")
+@router.post("/videos/", response_model=VideoRead, summary="Upload a new video")
 async def create_video(
     db: AsyncSession = Depends(get_db),
     video_file: UploadFile = File(...),
@@ -25,7 +25,7 @@ async def create_video(
     return await video_service.create_video(data, video_file, preview_file, db)
 
 
-@router.get("videos/", response_model=ListResponse[VideoRead], summary="Get all videos")
+@router.get("/videos/", response_model=ListResponse[VideoRead], summary="Get all videos")
 async def get_all_videos(
     skip: int = 0,
     limit: int = 100,
@@ -37,7 +37,7 @@ async def get_all_videos(
     return ListResponse[VideoRead](data=videos, total=len(videos))
 
 
-@router.put("videos/{video_id}", response_model=VideoRead, summary="Update video by ID")
+@router.put("/videos/{video_id}", response_model=VideoRead, summary="Update video by ID")
 async def update_video(
     video_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -49,7 +49,7 @@ async def update_video(
     return await video_service.update_video(video_id, data, preview_file, db)
 
 
-@router.delete("videos/{video_id}", response_model=VideoRead, summary="Delete video by ID")
+@router.delete("/videos/{video_id}", response_model=VideoRead, summary="Delete video by ID")
 async def delete_video(
     video_id: UUID,
     db: AsyncSession = Depends(get_db),
