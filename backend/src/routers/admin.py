@@ -105,7 +105,7 @@ async def get_attribute_values(
     return ListResponse(data=values, total=len(values))
 
 
-@router.delete("/attribute-types/{id}", summary="Delete attribute type by ID")
+@router.delete("/attribute-types/{id}", response_model=StatusResponse, summary="Delete attribute type by ID")
 async def delete_type(
     id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -116,7 +116,7 @@ async def delete_type(
     return StatusResponse(message="Attribute type deleted successfully")
 
 
-@router.delete("/attribute-values/{id}", summary="Delete attribute value by ID")
+@router.delete("/attribute-values/{id}", response_model=StatusResponse, summary="Delete attribute value by ID")
 async def delete_value(
     id: UUID,
     db: AsyncSession = Depends(get_db),

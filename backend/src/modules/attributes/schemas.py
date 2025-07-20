@@ -28,3 +28,4 @@ class AttributeValueCreate(AttributeValueBase):
 class AttributeValueRead(AttributeValueBase):
     id: UUID
     created_at: datetime
+    name: str

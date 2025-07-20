@@ -1,8 +1,10 @@
 from uuid import UUID
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models import AttributeValueTable
 from .crud import AttributeTypeDatabase, AttributeValueDatabase
-from .schemas import AttributeTypeCreate, AttributeValueCreate
+from .schemas import AttributeTypeCreate, AttributeValueCreate, AttributeValueRead, AttributeTypeRead
 
 class AttributeService:
     def __init__(
@@ -13,20 +15,25 @@ class AttributeService:
         self.att_database = att_database
         self.value_database = value_database
 
-    async def create_type(self, data: AttributeTypeCreate, db: AsyncSession):
+    async def create_type(self, data: AttributeTypeCreate, db: AsyncSession) -> AttributeTypeRead:
         return await self.att_database.create(db, data)
 
-    async def create_value(self, data: AttributeValueCreate, db: AsyncSession):
+
+    async def create_value(self, data: AttributeValueCreate, db: AsyncSession) -> AttributeValueRead:
         return await self.value_database.create(db, data)
 
-    async def get_all_types(self, db: AsyncSession):
+
+    async def get_all_types(self, db: AsyncSession) -> list[AttributeTypeRead]:
         return await self.att_database.get_multi(db)
 
-    async def get_values_by_type(self, type_id: UUID, db: AsyncSession):
-        return await self.value_database.get_objects(db, return_many=True, type_id=type_id)
-    
+
+    async def get_values_by_type(self, db: AsyncSession, type_id: UUID) -> list[AttributeValueRead]:
+        return await self.value_database.get_objects(db, return_many=True, options=[selectinload(AttributeValueTable.type)], type_id=type_id)
+        
+
     async def delete_type(self, id: UUID, db: AsyncSession):
-        return await self.att_database.remove(db, id=id)
+        await self.att_database.remove(db, id=id)
+
 
     async def delete_value(self, id: UUID, db: AsyncSession):
-        return await self.value_database.remove(db, id=id)
+        await self.value_database.remove(db, id=id)
