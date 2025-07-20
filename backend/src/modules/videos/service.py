@@ -75,7 +75,7 @@ class VideoService:
             ]
         )
 
-        return video_with_attributes
+        return self.utils.attach_presigned_urls(video_with_attributes)
 
     async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoRead]:
         videos = await self.database.get_multi(db, skip, limit)
