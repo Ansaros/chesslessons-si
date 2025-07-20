@@ -64,7 +64,7 @@ async def delete_video(
     return StatusResponse(message="Video deleted successfully")
 
 
-@router.post("/attribute-types/", response_model=AttributeTypeSimple, summary="Create a new attribute type")
+@router.post("/attribute/types", response_model=AttributeTypeSimple, summary="Create a new attribute type")
 async def create_attribute_type(
     data: AttributeTypeCreate,
     db: AsyncSession = Depends(get_db),
@@ -74,7 +74,7 @@ async def create_attribute_type(
     return await attribute_service.create_type(data, db)
 
 
-@router.get("/attribute-types/", response_model=ListResponse[AttributeTypeRead], summary="Get all attribute types")
+@router.get("/attribute/types", response_model=ListResponse[AttributeTypeRead], summary="Get all attribute types")
 async def get_attribute_types(
     db: AsyncSession = Depends(get_db),
     current_user: UserTable = Depends(get_admin_user),
@@ -84,7 +84,7 @@ async def get_attribute_types(
     return ListResponse(data=types, total=len(types))
 
 
-@router.post("/attribute-values/", response_model=AttributeValueRead, summary="Create a new attribute value")
+@router.post("/attribute/values", response_model=AttributeValueRead, summary="Create a new attribute value")
 async def create_attribute_value(
     data: AttributeValueCreate,
     db: AsyncSession = Depends(get_db),
@@ -94,7 +94,7 @@ async def create_attribute_value(
     return await attribute_service.create_value(data, db)
 
 
-@router.delete("/attribute-types/{id}", response_model=StatusResponse, summary="Delete attribute type by ID")
+@router.delete("/attribute/types/{id}", response_model=StatusResponse, summary="Delete attribute type by ID")
 async def delete_type(
     id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -105,7 +105,7 @@ async def delete_type(
     return StatusResponse(message="Attribute type deleted successfully")
 
 
-@router.delete("/attribute-values/{id}", response_model=StatusResponse, summary="Delete attribute value by ID")
+@router.delete("/attribute/values/{id}", response_model=StatusResponse, summary="Delete attribute value by ID")
 async def delete_value(
     id: UUID,
     db: AsyncSession = Depends(get_db),
