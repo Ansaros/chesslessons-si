@@ -69,9 +69,7 @@ class VideoUtils:
             preview_url=self.generate_presigned_url(preview_key),
             hls_url=self.generate_presigned_url(hls_key),
             access_level=video.access_level,
-            level_required=video.level_required,
             price=video.price,
-            category_id=video.category_id,
             created_at=video.created_at,
             attributes=attributes
         )
