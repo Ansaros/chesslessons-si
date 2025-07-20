@@ -27,7 +27,7 @@ class AttributeService:
         return await self.att_database.get_multi(db)
 
 
-    async def get_values_by_type(self, db: AsyncSession, type_id: UUID) -> list[AttributeValueRead]:
+    async def get_values_by_type(self, type_id: UUID, db: AsyncSession) -> list[AttributeValueRead]:
         return await self.value_database.get_objects(db, return_many=True, options=[selectinload(AttributeValueTable.type)], type_id=type_id)
         
 
