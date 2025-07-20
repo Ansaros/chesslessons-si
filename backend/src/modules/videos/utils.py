@@ -3,10 +3,11 @@ import boto3
 import subprocess
 from botocore.exceptions import ClientError
 
-from .schemas import VideoRead
+
 from src.models import VideoTable
 from src.core.config import Config
 from src.core.logger import logger
+from .schemas import VideoRead, AttributeTypedValueRead
 
 
 class VideoUtils:
@@ -51,6 +52,16 @@ class VideoUtils:
     def attach_presigned_urls(self, video: VideoTable) -> VideoRead:
         preview_key = self.extract_key(video.preview_url)
         hls_key = self.extract_key(video.hls_url)
+
+        attributes = []
+        for link in video.attributes or []:
+            val = link.attribute_value
+            if val and val.type:
+                attributes.append(AttributeTypedValueRead(
+                    type=val.type.name,
+                    value=val.value
+                ))
+
         return VideoRead(
             id=video.id,
             title=video.title,
@@ -62,6 +73,7 @@ class VideoUtils:
             price=video.price,
             category_id=video.category_id,
             created_at=video.created_at,
+            attributes=attributes
         )
 
 

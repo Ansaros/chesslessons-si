@@ -4,7 +4,6 @@ from typing import Optional
 from decimal import Decimal
 from datetime import datetime
 from pydantic import BaseModel, Field
-from src.modules.attributes.schemas import AttributeValueRead
 
 class VideoBase(BaseModel):
     title: str
@@ -51,10 +50,13 @@ class VideoUpdate(VideoBase):
             price=price,
         )
 
+class AttributeTypedValueRead(BaseModel):
+    type: str
+    value: str
 
 class VideoRead(VideoBase):
     id: UUID
     preview_url: Optional[str] = None
     hls_url: Optional[str] = None
     created_at: datetime
-    attributes: Optional[list[AttributeValueRead]] = None
+    attributes: Optional[list[AttributeTypedValueRead]] = None
