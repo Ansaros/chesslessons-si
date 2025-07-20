@@ -24,8 +24,9 @@ class AttributeService:
 
 
     async def get_all_types(self, db: AsyncSession) -> list[AttributeTypeRead]:
-        db_objs = await self.att_database.get_multi(
+        db_objs = await self.att_database.get_objects(
             db,
+            return_many=True,
             options=[selectinload(AttributeTypeTable.values)]
         )
 
