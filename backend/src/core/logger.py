@@ -79,7 +79,7 @@ LOGGING_CONFIG = {
         },
     },
     "root": {
-        "level": "NOTSET",
+        "level": "ERROR",
         "handlers": ["console"],
     },
 }
@@ -88,7 +88,6 @@ def setup_logging():
     debug = get_config().DEBUG
     level = "DEBUG" if debug else "INFO"
     LOGGING_CONFIG["loggers"][""]["level"] = level
-    LOGGING_CONFIG["root"]["level"] = level
     logging.config.dictConfig(LOGGING_CONFIG)
 
 logger = logging.getLogger(__name__)

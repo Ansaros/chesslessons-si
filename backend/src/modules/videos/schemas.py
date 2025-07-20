@@ -11,6 +11,8 @@ class VideoBase(BaseModel):
     description: Optional[str] = None
     access_level: int = Field(ge=0, le=2, description="0=Free, 1=One-time purchase, 2=Subscription")
     price: Optional[Decimal] = None
+    preview_url: Optional[str] = None
+    hls_url: Optional[str] = None
 
 
 class VideoCreate(VideoBase):
