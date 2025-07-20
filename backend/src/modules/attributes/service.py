@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import AttributeValueTable, AttributeTypeTable
 from .crud import AttributeTypeDatabase, AttributeValueDatabase
-from .schemas import AttributeTypeCreate, AttributeValueCreate, AttributeValueRead, AttributeTypeRead
+from .schemas import AttributeTypeCreate, AttributeValueCreate, AttributeValueRead, AttributeTypeRead, AttributeTypeSimple
 
 class AttributeService:
     def __init__(
@@ -15,7 +15,7 @@ class AttributeService:
         self.att_database = att_database
         self.value_database = value_database
 
-    async def create_type(self, data: AttributeTypeCreate, db: AsyncSession) -> AttributeTypeRead:
+    async def create_type(self, data: AttributeTypeCreate, db: AsyncSession) -> AttributeTypeSimple:
         return await self.att_database.create(db, data)
 
 

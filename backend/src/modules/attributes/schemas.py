@@ -1,5 +1,4 @@
 from uuid import UUID
-from typing import Optional
 from pydantic import BaseModel
 
 
@@ -25,4 +24,8 @@ class AttributeValueRead(AttributeValueBase):
 
 class AttributeTypeRead(AttributeTypeBase):
     id: UUID
-    values: Optional[list[AttributeValueRead]] = None
+    values: list[AttributeValueRead]
+
+
+class AttributeTypeSimple(AttributeTypeBase):
+    id: UUID

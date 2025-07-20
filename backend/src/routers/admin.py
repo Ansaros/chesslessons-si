@@ -12,7 +12,7 @@ from src.modules.attributes.service import AttributeService
 from src.modules.videos.dependencies import get_video_service
 from src.modules.attributes.dependencies import get_attribute_service
 from src.modules.videos.schemas import VideoCreate, VideoUpdate, VideoRead
-from src.modules.attributes.schemas import AttributeTypeCreate, AttributeTypeRead, AttributeValueCreate, AttributeValueRead
+from src.modules.attributes.schemas import AttributeTypeCreate, AttributeTypeRead, AttributeValueCreate, AttributeValueRead, AttributeTypeSimple
 
 
 router = APIRouter()
@@ -64,7 +64,7 @@ async def delete_video(
     return StatusResponse(message="Video deleted successfully")
 
 
-@router.post("/attribute-types/", response_model=AttributeTypeRead, summary="Create a new attribute type")
+@router.post("/attribute-types/", response_model=AttributeTypeSimple, summary="Create a new attribute type")
 async def create_attribute_type(
     data: AttributeTypeCreate,
     db: AsyncSession = Depends(get_db),
