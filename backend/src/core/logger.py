@@ -2,16 +2,15 @@ import logging
 import logging.config
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+
 from src.core.dependencies import get_config
 
 class CustomFormatter(logging.Formatter):
     def formatTime(self, record, datefmt=None):
         utc_dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
         local_dt = utc_dt.astimezone(timezone(timedelta(hours=5)))
-        if datefmt:
-            return local_dt.strftime(datefmt)
-        return local_dt.isoformat()
-    
+        return local_dt.strftime(datefmt) if datefmt else local_dt.isoformat()
+
     def format(self, record):
         if record.name.startswith("uvicorn"):
             record.custom_filename = "uvicorn"
@@ -39,6 +38,7 @@ class CustomFormatter(logging.Formatter):
 FORMAT = "[%(asctime)s] [ %(levelname)s ] [%(custom_filename)s] %(message)s"
 DATEFMT = "%Y-%m-%d %H:%M:%S"
 
+# Базовая конфигурация
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -73,19 +73,22 @@ LOGGING_CONFIG = {
             "propagate": False,
         },
         "": {
-            "level":  "DEBUG" if get_config().DEBUG else "INFO",
+            "level": "NOTSET",
             "handlers": ["console"],
             "propagate": True,
         },
     },
     "root": {
-        "level": "ERROR",
+        "level": "NOTSET",
         "handlers": ["console"],
     },
 }
 
 def setup_logging():
+    debug = get_config().DEBUG
+    level = "DEBUG" if debug else "INFO"
+    LOGGING_CONFIG["loggers"][""]["level"] = level
+    LOGGING_CONFIG["root"]["level"] = level
     logging.config.dictConfig(LOGGING_CONFIG)
-
 
 logger = logging.getLogger(__name__)
