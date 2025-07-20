@@ -23,7 +23,6 @@ class AttributeValueCreate(AttributeValueBase):
 
 class AttributeValueRead(AttributeValueBase):
     id: UUID
-    name: Optional[str] = None
 
 
 class AttributeTypeRead(AttributeTypeBase):

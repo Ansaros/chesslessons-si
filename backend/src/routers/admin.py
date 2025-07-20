@@ -94,17 +94,6 @@ async def create_attribute_value(
     return await attribute_service.create_value(data, db)
 
 
-@router.get("/attribute-values/", response_model=ListResponse[AttributeValueRead], summary="Get values by attribute type")
-async def get_attribute_values(
-    type_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserTable = Depends(get_admin_user),
-    attribute_service: AttributeService = Depends(get_attribute_service),
-):
-    values = await attribute_service.get_values_by_type(type_id, db)
-    return ListResponse(data=values, total=len(values))
-
-
 @router.delete("/attribute-types/{id}", response_model=StatusResponse, summary="Delete attribute type by ID")
 async def delete_type(
     id: UUID,
