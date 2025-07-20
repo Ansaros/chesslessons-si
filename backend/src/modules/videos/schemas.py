@@ -14,7 +14,6 @@ class VideoBase(BaseModel):
 
 
 class VideoCreate(VideoBase):
-    attribute_value_ids: Optional[list[UUID]] = None
     @classmethod
     def as_form(
         cls,
@@ -22,26 +21,19 @@ class VideoCreate(VideoBase):
         description: Optional[str] = Form(None),
         access_level: Optional[int] = Form(None),
         price: Optional[Decimal] = Form(None),
-        attribute_value_ids: Optional[str] = Form(None)
     ) -> "VideoCreate":
         return cls(
             title=title,
             description=description,
             access_level=access_level,
             price=price,
-            attribute_value_ids=[
-                UUID(i.strip()) for i in attribute_value_ids.split(",")
-            ] if attribute_value_ids else None,
         )
 
 
-class VideoUpdate(BaseModel):
+class VideoUpdate(VideoBase):
     title: Optional[str] = None
-    description: Optional[str] = None
     access_level: Optional[int] = Field(None, ge=0, le=2)
-    price: Optional[Decimal] = None
-    attribute_value_ids: Optional[list[UUID]] = None
-
+    
     @classmethod
     def as_form(
         cls,
@@ -49,16 +41,12 @@ class VideoUpdate(BaseModel):
         description: Optional[str] = Form(None),
         access_level: Optional[int] = Form(None),
         price: Optional[Decimal] = Form(None),
-        attribute_value_ids: Optional[str] = Form(None)
     ) -> "VideoUpdate":
         return cls(
             title=title,
             description=description,
             access_level=access_level,
             price=price,
-            attribute_value_ids=[
-                UUID(i.strip()) for i in attribute_value_ids.split(",")
-            ] if attribute_value_ids else None,
         )
 
 

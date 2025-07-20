@@ -29,6 +29,7 @@ class VideoService:
         data: VideoCreate,
         video_file: UploadFile,
         preview_file: UploadFile,
+        attribute_value_ids: Optional[list[UUID]],
         db: AsyncSession,
     ) -> VideoTable:
         video_id = str(uuid.uuid4())
@@ -61,8 +62,8 @@ class VideoService:
         obj_in = data.model_copy(update={"preview_url": preview_url, "hls_url": hls_url})
         db_obj = await self.database.create(db, obj_in)
 
-        if data.attribute_value_ids:
-            await self.database.add_attributes(db, db_obj.id, data.attribute_value_ids)
+        if attribute_value_ids:
+            await self.database.add_attributes(db, db_obj.id, attribute_value_ids)
 
         return db_obj
 
@@ -77,6 +78,7 @@ class VideoService:
         video_id: UUID,
         data: VideoUpdate,
         preview_file: Optional[UploadFile],
+        attribute_value_ids: Optional[list[UUID]],
         db: AsyncSession,
     ) -> VideoRead:
         db_obj = await self.database.get(db, video_id)
@@ -98,8 +100,8 @@ class VideoService:
 
         updated = await self.database.update(db, db_obj=db_obj, obj_in=data)
 
-        if data.attribute_value_ids is not None:
-            await self.database.add_attributes(db, updated.id, data.attribute_value_ids)
+        if attribute_value_ids:
+            await self.database.add_attributes(db, updated.id, attribute_value_ids)
 
         return self.utils.attach_presigned_urls(updated)
             

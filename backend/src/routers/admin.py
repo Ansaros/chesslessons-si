@@ -1,7 +1,7 @@
 from uuid import UUID
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 
 from src.models import UserTable
 from src.core.database import get_db
@@ -24,9 +24,10 @@ async def create_video(
     preview_file: UploadFile = File(...),
     data: VideoCreate = Depends(VideoCreate.as_form),
     сurrent_user: UserTable = Depends(get_admin_user),
+    attribute_value_ids: Optional[list[UUID]] = Form(None),
     video_service: VideoService = Depends(get_video_service),
 ):
-    return await video_service.create_video(data, video_file, preview_file, db)
+    return await video_service.create_video(data, video_file, preview_file, attribute_value_ids, db)
 
 
 @router.get("/videos/", response_model=ListResponse[VideoRead], summary="Get all videos")
@@ -48,9 +49,10 @@ async def update_video(
     preview_file: Optional[UploadFile] = File(None),
     data: VideoUpdate = Depends(VideoUpdate.as_form),
     сurrent_user: UserTable = Depends(get_admin_user),
+    attribute_value_ids: Optional[list[UUID]] = Form(None),
     video_service: VideoService = Depends(get_video_service),
 ):
-    return await video_service.update_video(video_id, data, preview_file, db)
+    return await video_service.update_video(video_id, data, preview_file, attribute_value_ids, db)
 
 
 @router.delete("/videos/{video_id}", response_model=VideoRead, summary="Delete video by ID")
