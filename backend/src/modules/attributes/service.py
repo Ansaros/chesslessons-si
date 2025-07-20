@@ -28,8 +28,23 @@ class AttributeService:
 
 
     async def get_values_by_type(self, type_id: UUID, db: AsyncSession) -> list[AttributeValueRead]:
-        return await self.value_database.get_objects(db, return_many=True, options=[selectinload(AttributeValueTable.type)], type_id=type_id)
-        
+        db_values = await self.value_database.get_objects(
+            db,
+            return_many=True,
+            options=[selectinload(AttributeValueTable.type)],
+            type_id=type_id,
+        )
+
+        return [
+            AttributeValueRead(
+                id=v.id,
+                value=v.value,
+                type_id=v.type_id,
+                name=v.type.name,
+                created_at=v.created_at,
+            )
+            for v in db_values
+        ]      
 
     async def delete_type(self, id: UUID, db: AsyncSession):
         await self.att_database.remove(db, id=id)
