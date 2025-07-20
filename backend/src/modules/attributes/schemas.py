@@ -1,6 +1,4 @@
 from uuid import UUID
-from typing import Optional
-from datetime import datetime
 from pydantic import BaseModel
 
 
@@ -17,7 +15,7 @@ class AttributeValueBase(BaseModel):
 
 
 class AttributeValueCreate(AttributeValueBase):
-    pass
+    type_id: UUID
 
 
 class AttributeValueRead(AttributeValueBase):
