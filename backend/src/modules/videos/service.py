@@ -12,7 +12,7 @@ from .utils import VideoUtils
 from .crud import VideoDatabase
 from src.core.config import Config
 from .schemas import VideoCreate, VideoUpdate, VideoRead
-from src.models import VideoTable, VideoAttributeLinkTable
+from src.models import VideoTable, VideoAttributeLinkTable, AttributeValueTable
 
 class VideoService:
     def __init__(
@@ -72,6 +72,7 @@ class VideoService:
             options=[
                 selectinload(VideoTable.attributes)
                 .selectinload(VideoAttributeLinkTable.attribute_value)
+                .selectinload(AttributeValueTable.type)
             ]
         )
 
