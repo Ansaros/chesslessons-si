@@ -11,10 +11,10 @@ class VideoBase(BaseModel):
     description: Optional[str] = None
     access_level: int = Field(ge=0, le=2, description="0=Free, 1=One-time purchase, 2=Subscription")
     price: Optional[Decimal] = None
-    attribute_value_ids: Optional[list[UUID]] = None
 
 
 class VideoCreate(VideoBase):
+    attribute_value_ids: Optional[list[UUID]] = None
     @classmethod
     def as_form(
         cls,
