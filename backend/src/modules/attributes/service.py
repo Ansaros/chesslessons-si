@@ -34,13 +34,11 @@ class AttributeService:
             AttributeTypeRead(
                 id=obj.id,
                 name=obj.name,
-                created_at=obj.created_at,
                 values=[
                     AttributeValueRead(
                         id=v.id,
                         value=v.value,
                         type_id=v.type_id,
-                        created_at=v.created_at
                     ) for v in obj.values
                 ]
             ) for obj in db_objs
@@ -61,7 +59,6 @@ class AttributeService:
                 value=v.value,
                 type_id=v.type_id,
                 name=v.type.name,
-                created_at=v.created_at,
             )
             for v in db_values
         ]      
