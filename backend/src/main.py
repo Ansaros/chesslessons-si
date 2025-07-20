@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.dependencies import get_config
 from src.routers.all import router as all_routes
-from src.core.logger import logger, setup_logging
+from src.core.logger import logger, setup_logging, logging
 
 setup_logging()
+logger.info(f"✅ Logging initialized. Effective level: {logging.getLevelName(logger.getEffectiveLevel())}")
 
 app = FastAPI(
     title="Chess Video Platform",

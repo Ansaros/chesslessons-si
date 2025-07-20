@@ -86,7 +86,6 @@ LOGGING_CONFIG = {
 
 def setup_logging():
     logging.config.dictConfig(LOGGING_CONFIG)
-    logger.info(f"Logging level Debug = {get_config().DEBUG}")
 
 
 logger = logging.getLogger(__name__)
