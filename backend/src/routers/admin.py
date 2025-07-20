@@ -8,8 +8,12 @@ from src.core.database import get_db
 from src.modules.videos.service import VideoService
 from src.schemas import ListResponse, StatusResponse
 from src.modules.auth.dependencies import get_admin_user
+from src.modules.attributes.service import AttributeService
 from src.modules.videos.dependencies import get_video_service
+from src.modules.attributes.dependencies import get_attribute_service
 from src.modules.videos.schemas import VideoCreate, VideoUpdate, VideoRead
+from src.modules.attributes.schemas import AttributeTypeCreate, AttributeTypeRead, AttributeValueCreate, AttributeValueRead
+
 
 router = APIRouter()
 
@@ -58,3 +62,66 @@ async def delete_video(
 ):
     await video_service.delete_video(db, video_id)
     return StatusResponse(message="Video deleted successfully")
+
+
+@router.post("/attribute-types/", response_model=AttributeTypeRead, summary="Create a new attribute type")
+async def create_attribute_type(
+    data: AttributeTypeCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserTable = Depends(get_admin_user),
+    attribute_service: AttributeService = Depends(get_attribute_service),
+):
+    return await attribute_service.create_type(data, db)
+
+
+@router.get("/attribute-types/", response_model=ListResponse[AttributeTypeRead], summary="Get all attribute types")
+async def get_attribute_types(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserTable = Depends(get_admin_user),
+    attribute_service: AttributeService = Depends(get_attribute_service),
+):
+    types = await attribute_service.get_all_types(db)
+    return ListResponse(data=types, total=len(types))
+
+
+@router.post("/attribute-values/", response_model=AttributeValueRead, summary="Create a new attribute value")
+async def create_attribute_value(
+    data: AttributeValueCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserTable = Depends(get_admin_user),
+    attribute_service: AttributeService = Depends(get_attribute_service),
+):
+    return await attribute_service.create_value(data, db)
+
+
+@router.get("/attribute-values/", response_model=ListResponse[AttributeValueRead], summary="Get values by attribute type")
+async def get_attribute_values(
+    type_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserTable = Depends(get_admin_user),
+    attribute_service: AttributeService = Depends(get_attribute_service),
+):
+    values = await attribute_service.get_values_by_type(type_id, db)
+    return ListResponse(data=values, total=len(values))
+
+
+@router.delete("/attribute-types/{id}", summary="Delete attribute type by ID")
+async def delete_type(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserTable = Depends(get_admin_user),
+    attribute_service: AttributeService = Depends(get_attribute_service),
+):
+    await attribute_service.delete_type(id, db)
+    return StatusResponse(message="Attribute type deleted successfully")
+
+
+@router.delete("/attribute-values/{id}", summary="Delete attribute value by ID")
+async def delete_value(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserTable = Depends(get_admin_user),
+    attribute_service: AttributeService = Depends(get_attribute_service),
+):
+    await attribute_service.delete_value(id, db)
+    return StatusResponse(message="Attribute value deleted successfully")

@@ -41,12 +41,26 @@ class UserTable(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-class CategoryTable(Base):
-    __tablename__ = "categories"
-
+class AttributeTypeTable(Base):
+    __tablename__ = "attribute_types"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, unique=True, nullable=False)  # "Категория", "Уровень"
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class AttributeValueTable(Base):
+    __tablename__ = "attribute_values"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    type_id = Column(UUID(as_uuid=True), ForeignKey("attribute_types.id", ondelete="CASCADE"))
+    value = Column(String, nullable=False)  # "Эндшпиль"
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class VideoAttributeLinkTable(Base):
+    __tablename__ = "video_attributes"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    video_id = Column(UUID(as_uuid=True), ForeignKey("videos.id", ondelete="CASCADE"))
+    attribute_value_id = Column(UUID(as_uuid=True), ForeignKey("attribute_values.id", ondelete="CASCADE"))
 
 
 class VideoTable(Base):
@@ -58,9 +72,7 @@ class VideoTable(Base):
     preview_url = Column(String)
     hls_url = Column(String)
     access_level = Column(Integer, default=0)  # FREE / ONE_TIME / SUBSCRIPTION
-    level_required = Column(String)  # Beginner / Amateur / etc
     price = Column(Numeric, nullable=True)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"))
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
