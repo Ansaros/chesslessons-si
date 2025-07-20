@@ -5,13 +5,14 @@ import shutil
 from uuid import UUID
 from typing import Optional
 from fastapi import UploadFile
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .utils import VideoUtils
 from .crud import VideoDatabase
-from src.models import VideoTable
 from src.core.config import Config
 from .schemas import VideoCreate, VideoUpdate, VideoRead
+from src.models import VideoTable, VideoAttributeLinkTable
 
 class VideoService:
     def __init__(
@@ -65,8 +66,16 @@ class VideoService:
         if attribute_value_ids:
             await self.database.add_attributes(db, db_obj.id, attribute_value_ids)
 
-        return db_obj
+        video_with_attributes = await self.database.get(
+            db,
+            id=db_obj.id,
+            options=[
+                selectinload(VideoTable.attributes)
+                .selectinload(VideoAttributeLinkTable.attribute_value)
+            ]
+        )
 
+        return video_with_attributes
 
     async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoRead]:
         videos = await self.database.get_multi(db, skip, limit)
