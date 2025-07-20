@@ -13,15 +13,12 @@ from sqlalchemy import (
     UniqueConstraint,
     Boolean,
 )
+from sqlalchemy.orm import relationship
+from sqlalchemy import Enum as SQLAEnum
 from sqlalchemy.dialects.postgresql import UUID
 
 from src.core.database import Base
 
-class ChessLevelEnum(str, Enum):
-    BEGINNER = "Beginner"
-    AMATEUR = "Amateur"
-    CANDIDATE_MASTER = "Candidate Master"
-    MASTER = "Master"
 
 
 class AccessLevelEnum(int, Enum):
@@ -40,27 +37,28 @@ class UserTable(Base):
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    purchases = relationship("PurchaseTable", back_populates="user")
+    views = relationship("ViewLogTable", back_populates="user")
+
 
 class AttributeTypeTable(Base):
     __tablename__ = "attribute_types"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name = Column(String, unique=True, nullable=False)  # "Категория", "Уровень"
+    name = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    values = relationship("AttributeValueTable", back_populates="type", cascade="all, delete")
 
 
 class AttributeValueTable(Base):
     __tablename__ = "attribute_values"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     type_id = Column(UUID(as_uuid=True), ForeignKey("attribute_types.id", ondelete="CASCADE"))
-    value = Column(String, nullable=False)  # "Эндшпиль"
+    value = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-
-class VideoAttributeLinkTable(Base):
-    __tablename__ = "video_attributes"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    video_id = Column(UUID(as_uuid=True), ForeignKey("videos.id", ondelete="CASCADE"))
-    attribute_value_id = Column(UUID(as_uuid=True), ForeignKey("attribute_values.id", ondelete="CASCADE"))
+    type = relationship("AttributeTypeTable", back_populates="values")
+    video_links = relationship("VideoAttributeLinkTable", back_populates="attribute_value", cascade="all, delete")
 
 
 class VideoTable(Base):
@@ -71,9 +69,25 @@ class VideoTable(Base):
     description = Column(Text)
     preview_url = Column(String)
     hls_url = Column(String)
-    access_level = Column(Integer, default=0)  # FREE / ONE_TIME / SUBSCRIPTION
+
+    access_level = Column(Integer, default=0, nullable=False)
     price = Column(Numeric, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    attributes = relationship("VideoAttributeLinkTable", back_populates="video", cascade="all, delete")
+    purchases = relationship("PurchaseTable", back_populates="video", cascade="all, delete")
+    views = relationship("ViewLogTable", back_populates="video", cascade="all, delete")
+
+
+class VideoAttributeLinkTable(Base):
+    __tablename__ = "video_attributes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    video_id = Column(UUID(as_uuid=True), ForeignKey("videos.id", ondelete="CASCADE"))
+    attribute_value_id = Column(UUID(as_uuid=True), ForeignKey("attribute_values.id", ondelete="CASCADE"))
+
+    video = relationship("VideoTable", back_populates="attributes")
+    attribute_value = relationship("AttributeValueTable", back_populates="video_links")
 
 
 class PurchaseTable(Base):
@@ -85,6 +99,9 @@ class PurchaseTable(Base):
     video_id = Column(UUID(as_uuid=True), ForeignKey("videos.id", ondelete="CASCADE"), nullable=False)
     purchase_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    user = relationship("UserTable", back_populates="purchases")
+    video = relationship("VideoTable", back_populates="purchases")
+
 
 class ViewLogTable(Base):
     __tablename__ = "views"
@@ -93,3 +110,6 @@ class ViewLogTable(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     video_id = Column(UUID(as_uuid=True), ForeignKey("videos.id", ondelete="SET NULL"))
     viewed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("UserTable", back_populates="views")
+    video = relationship("VideoTable", back_populates="views")
