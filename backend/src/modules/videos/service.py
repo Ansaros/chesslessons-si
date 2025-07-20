@@ -58,13 +58,13 @@ class VideoService:
         preview_url = f"{base_url}/{preview_key}"
         hls_url = f"{base_url}/{hls_key_prefix}master.m3u8"
 
-        return await self.database.create(
-            db,
-            data.model_copy(update={
-                "preview_url": preview_url,
-                "hls_url": hls_url
-            })
-        )
+        obj_in = data.model_copy(update={"preview_url": preview_url, "hls_url": hls_url})
+        db_obj = await self.database.create(db, obj_in)
+
+        if data.attribute_value_ids:
+            await self.database.add_attributes(db, db_obj.id, data.attribute_value_ids)
+
+        return db_obj
 
 
     async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoRead]:
@@ -97,8 +97,12 @@ class VideoService:
             data.preview_url = new_preview_url
 
         updated = await self.database.update(db, db_obj=db_obj, obj_in=data)
+
+        if data.attribute_value_ids is not None:
+            await self.database.add_attributes(db, updated.id, data.attribute_value_ids)
+
         return self.utils.attach_presigned_urls(updated)
-    
+            
 
     async def delete_video(self, video_id: UUID, db: AsyncSession) -> VideoRead:
         db_obj = await self.database.get(db, video_id)

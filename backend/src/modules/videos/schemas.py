@@ -4,16 +4,14 @@ from typing import Optional
 from decimal import Decimal
 from datetime import datetime
 from pydantic import BaseModel, Field
+from src.modules.attributes.schemas import AttributeValueRead
 
 class VideoBase(BaseModel):
     title: str
     description: Optional[str] = None
-    preview_url: Optional[str] = None
-    hls_url: Optional[str] = None
     access_level: int = Field(ge=0, le=2, description="0=Free, 1=One-time purchase, 2=Subscription")
-    level_required: Optional[str] = None
     price: Optional[Decimal] = None
-    category_id: Optional[UUID] = None
+    attribute_value_ids: Optional[list[UUID]] = None
 
 
 class VideoCreate(VideoBase):
@@ -22,18 +20,14 @@ class VideoCreate(VideoBase):
         cls,
         title: str = Form(...),
         description: Optional[str] = Form(None),
-        access_level: int = Form(...),
-        level_required: Optional[str] = Form(None),
         price: Optional[Decimal] = Form(None),
-        category_id: Optional[UUID] = Form(None),
+        attribute_value_ids: Optional[list[UUID]] = Form(None)
     ) -> "VideoCreate":
         return cls(
             title=title,
             description=description,
-            access_level=access_level,
-            level_required=level_required,
             price=price,
-            category_id=category_id,
+            attribute_value_ids=attribute_value_ids
         )
 
 
@@ -41,10 +35,8 @@ class VideoUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     access_level: Optional[int] = Field(None, ge=0, le=2)
-    level_required: Optional[str] = None
     price: Optional[Decimal] = None
-    category_id: Optional[UUID] = None
-    preview_url: Optional[str] = None
+    attribute_value_ids: Optional[list[UUID]] = None
 
     @classmethod
     def as_form(
@@ -52,24 +44,21 @@ class VideoUpdate(BaseModel):
         title: Optional[str] = Form(None),
         description: Optional[str] = Form(None),
         access_level: Optional[int] = Form(None),
-        level_required: Optional[str] = Form(None),
         price: Optional[Decimal] = Form(None),
-        category_id: Optional[UUID] = Form(None),
+        attribute_value_ids: Optional[list[UUID]] = Form(None)
     ) -> "VideoUpdate":
         return cls(
             title=title,
             description=description,
             access_level=access_level,
-            level_required=level_required,
             price=price,
-            category_id=category_id,
+            attribute_value_ids=attribute_value_ids
         )
 
 
 class VideoRead(VideoBase):
     id: UUID
+    preview_url: Optional[str] = None
+    hls_url: Optional[str] = None
     created_at: datetime
-
-    model_config = {
-        "from_attributes": True
-    }
+    attributes: Optional[list[AttributeValueRead]] = None
