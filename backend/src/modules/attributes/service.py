@@ -22,7 +22,7 @@ class AttributeService:
     async def get_all_types(self, db: AsyncSession):
         return await self.att_database.get_multi(db)
 
-    async def get_values_by_type(self, db: AsyncSession, type_id: UUID):
+    async def get_values_by_type(self, type_id: UUID, db: AsyncSession):
         return await self.value_database.get_objects(db, return_many=True, type_id=type_id)
     
     async def delete_type(self, id: UUID, db: AsyncSession):
