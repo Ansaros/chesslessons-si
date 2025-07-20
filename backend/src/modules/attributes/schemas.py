@@ -14,7 +14,6 @@ class AttributeTypeCreate(AttributeTypeBase):
 
 class AttributeValueBase(BaseModel):
     value: str
-    type_id: UUID
 
 
 class AttributeValueCreate(AttributeValueBase):
