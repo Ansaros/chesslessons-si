@@ -21,7 +21,7 @@ class VideoCreate(VideoBase):
         title: str = Form(...),
         description: Optional[str] = Form(None),
         price: Optional[Decimal] = Form(None),
-        attribute_value_ids: Optional[list[UUID]] = Form(None)
+        attribute_value_ids: Optional[str] = Form(None)
     ) -> "VideoCreate":
         return cls(
             title=title,
@@ -47,7 +47,7 @@ class VideoUpdate(BaseModel):
         description: Optional[str] = Form(None),
         access_level: Optional[int] = Form(None),
         price: Optional[Decimal] = Form(None),
-        attribute_value_ids: Optional[list[UUID]] = Form(None)
+        attribute_value_ids: Optional[str] = Form(None)
     ) -> "VideoUpdate":
         return cls(
             title=title,
