@@ -27,7 +27,9 @@ class VideoCreate(VideoBase):
             title=title,
             description=description,
             price=price,
-            attribute_value_ids=attribute_value_ids
+            attribute_value_ids=[
+                UUID(i.strip()) for i in attribute_value_ids.split(",")
+            ] if attribute_value_ids else None,
         )
 
 
@@ -52,7 +54,9 @@ class VideoUpdate(BaseModel):
             description=description,
             access_level=access_level,
             price=price,
-            attribute_value_ids=attribute_value_ids
+            attribute_value_ids=[
+                UUID(i.strip()) for i in attribute_value_ids.split(",")
+            ] if attribute_value_ids else None,
         )
 
 
