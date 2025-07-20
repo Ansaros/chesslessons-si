@@ -11,11 +11,6 @@ class AttributeTypeCreate(AttributeTypeBase):
     pass
 
 
-class AttributeTypeRead(AttributeTypeBase):
-    id: UUID
-    created_at: datetime
-
-
 class AttributeValueBase(BaseModel):
     value: str
     type_id: UUID
@@ -29,3 +24,9 @@ class AttributeValueRead(AttributeValueBase):
     id: UUID
     created_at: datetime
     name: str
+
+
+class AttributeTypeRead(AttributeTypeBase):
+    id: UUID
+    created_at: datetime
+    values: list[AttributeValueRead]

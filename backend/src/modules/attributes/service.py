@@ -2,7 +2,7 @@ from uuid import UUID
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import AttributeValueTable
+from src.models import AttributeValueTable, AttributeTypeTable
 from .crud import AttributeTypeDatabase, AttributeValueDatabase
 from .schemas import AttributeTypeCreate, AttributeValueCreate, AttributeValueRead, AttributeTypeRead
 
@@ -24,7 +24,26 @@ class AttributeService:
 
 
     async def get_all_types(self, db: AsyncSession) -> list[AttributeTypeRead]:
-        return await self.att_database.get_multi(db)
+        db_objs = await self.att_database.get_multi(
+            db,
+            options=[selectinload(AttributeTypeTable.values)]
+        )
+
+        return [
+            AttributeTypeRead(
+                id=obj.id,
+                name=obj.name,
+                created_at=obj.created_at,
+                values=[
+                    AttributeValueRead(
+                        id=v.id,
+                        value=v.value,
+                        type_id=v.type_id,
+                        created_at=v.created_at
+                    ) for v in obj.values
+                ]
+            ) for obj in db_objs
+        ]
 
 
     async def get_values_by_type(self, type_id: UUID, db: AsyncSession) -> list[AttributeValueRead]:
