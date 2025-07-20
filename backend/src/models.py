@@ -45,7 +45,6 @@ class AttributeTypeTable(Base):
     __tablename__ = "attribute_types"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     values = relationship("AttributeValueTable", back_populates="type", cascade="all, delete")
 
@@ -55,7 +54,6 @@ class AttributeValueTable(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     type_id = Column(UUID(as_uuid=True), ForeignKey("attribute_types.id", ondelete="CASCADE"))
     value = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     type = relationship("AttributeTypeTable", back_populates="values")
     video_links = relationship("VideoAttributeLinkTable", back_populates="attribute_value", cascade="all, delete")

@@ -23,11 +23,9 @@ class AttributeValueCreate(AttributeValueBase):
 
 class AttributeValueRead(AttributeValueBase):
     id: UUID
-    created_at: datetime
     name: Optional[str] = None
 
 
 class AttributeTypeRead(AttributeTypeBase):
     id: UUID
-    created_at: datetime
     values: list[AttributeValueRead]
