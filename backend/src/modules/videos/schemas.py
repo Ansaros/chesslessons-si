@@ -20,12 +20,14 @@ class VideoCreate(VideoBase):
         cls,
         title: str = Form(...),
         description: Optional[str] = Form(None),
+        access_level: Optional[int] = Form(None),
         price: Optional[Decimal] = Form(None),
         attribute_value_ids: Optional[str] = Form(None)
     ) -> "VideoCreate":
         return cls(
             title=title,
             description=description,
+            access_level=access_level,
             price=price,
             attribute_value_ids=[
                 UUID(i.strip()) for i in attribute_value_ids.split(",")
