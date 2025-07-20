@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -23,7 +24,7 @@ class AttributeValueCreate(AttributeValueBase):
 class AttributeValueRead(AttributeValueBase):
     id: UUID
     created_at: datetime
-    name: str
+    name: Optional[str] = None
 
 
 class AttributeTypeRead(AttributeTypeBase):
