@@ -24,9 +24,13 @@ async def create_video(
     preview_file: UploadFile = File(...),
     data: VideoCreate = Depends(VideoCreate.as_form),
     сurrent_user: UserTable = Depends(get_admin_user),
-    attribute_value_ids: Optional[list[UUID]] = Form(None),
+    attribute_value_ids: Optional[str] = Form(None),
     video_service: VideoService = Depends(get_video_service),
 ):
+    attribute_value_ids = (
+        [UUID(x.strip()) for x in attribute_value_ids.split(",")]
+        if attribute_value_ids else []
+    )
     return await video_service.create_video(data, video_file, preview_file, attribute_value_ids, db)
 
 
@@ -49,9 +53,13 @@ async def update_video(
     preview_file: Optional[UploadFile] = File(None),
     data: VideoUpdate = Depends(VideoUpdate.as_form),
     сurrent_user: UserTable = Depends(get_admin_user),
-    attribute_value_ids: Optional[list[UUID]] = Form(None),
+    attribute_value_ids: Optional[str] = Form(None),
     video_service: VideoService = Depends(get_video_service),
 ):
+    attribute_value_ids = (
+        [UUID(x.strip()) for x in attribute_value_ids.split(",")]
+        if attribute_value_ids else []
+    )
     return await video_service.update_video(video_id, data, preview_file, attribute_value_ids, db)
 
 
