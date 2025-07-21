@@ -76,15 +76,27 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return self._raise_not_found_if_empty(obj, id=id)
 
 
-    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> list[ModelType]:
+    async def get_multi(
+        self,
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 100,
+        options: Optional[list[Any]] = None
+    ) -> list[ModelType]:
         """
         Retrieve multiple objects (paginated).
+        Supports loading related objects if options are provided.
         Returns an empty list if none found.
         """
-        logger.debug(f"Fetching multiple {self.model.__name__} entries: skip={skip}, limit={limit}")
-        result = await db.execute(select(self.model).offset(skip).limit(limit))
+        logger.debug(f"Fetching multiple {self.model.__name__} entries: skip={skip}, limit={limit}, options={options}")
+
+        stmt = select(self.model).offset(skip).limit(limit)
+        if options:
+            stmt = stmt.options(*options)
+
+        result = await db.execute(stmt)
         return result.scalars().all()
-    
+        
 
     async def get_objects(self, db: AsyncSession, return_many: bool = False, options: Optional[list[Any]] = None, **kwargs) -> Union[ModelType, list[ModelType]]:
         """
