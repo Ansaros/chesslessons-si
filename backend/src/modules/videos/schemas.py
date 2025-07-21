@@ -60,3 +60,4 @@ class VideoRead(VideoBase):
     hls_url: Optional[str] = None
     created_at: datetime
     attributes: Optional[list[AttributeTypedValueRead]] = None
+    hls_segments: dict[str, str] = {}

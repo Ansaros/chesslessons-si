@@ -52,6 +52,22 @@ class VideoUtils:
     def attach_presigned_urls(self, video: VideoTable) -> VideoRead:
         preview_key = self.extract_key(video.preview_url)
         hls_key = self.extract_key(video.hls_url)
+        hls_prefix = hls_key.replace("master.m3u8", "")
+
+        response = self.s3.list_objects_v2(
+            Bucket=self.config.SPACES_BUCKET,
+            Prefix=hls_prefix
+        )
+        ts_files = [
+            obj["Key"]
+            for obj in response.get("Contents", [])
+            if obj["Key"].endswith(".ts")
+        ]
+
+        segment_urls = {
+            key.split("/")[-1]: self.generate_presigned_url(key)
+            for key in ts_files
+        }
 
         attributes = []
         for link in video.attributes or []:
@@ -71,7 +87,8 @@ class VideoUtils:
             access_level=video.access_level,
             price=video.price,
             created_at=video.created_at,
-            attributes=attributes
+            attributes=attributes,
+            hls_segments=segment_urls
         )
 
 
