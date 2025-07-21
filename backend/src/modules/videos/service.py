@@ -117,7 +117,17 @@ class VideoService:
         if attribute_value_ids:
             await self.database.add_attributes(db, updated.id, attribute_value_ids)
 
-        return self.utils.attach_presigned_urls(updated)
+        video_with_attributes = await self.database.get(
+            db,
+            id=updated.id,
+            options=[
+                selectinload(VideoTable.attributes)
+                .selectinload(VideoAttributeLinkTable.attribute_value)
+                .selectinload(AttributeValueTable.type)
+            ]
+        )
+
+        return self.utils.attach_presigned_urls(video_with_attributes)
             
 
     async def delete_video(self, video_id: UUID, db: AsyncSession) -> VideoRead:
