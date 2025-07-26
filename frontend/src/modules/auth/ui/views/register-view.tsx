@@ -49,7 +49,7 @@ export const RegisterView = () => {
             alert("Необходимо согласиться с условиями использования")
             return
         }
-        window.location.href = "/sign-in"
+        window.location.href = "/login"
     }
 
     return (
