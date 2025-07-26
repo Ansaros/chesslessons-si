@@ -37,6 +37,8 @@ import {
     Save
 } from "lucide-react"
 
+import { useAuth } from "@/hooks/use-auth"
+
 // Mock user data
 const userData = {
     id: 1,
@@ -105,6 +107,7 @@ const purchasedVideos = [
 ]
 
 export const ProfileView = () => {
+
     const [isEditing, setIsEditing] = useState(false)
     const [editData, setEditData] = useState({
         firstName: userData.firstName,
@@ -112,6 +115,10 @@ export const ProfileView = () => {
         email: userData.email,
     })
 
+    const { authenticated } = useAuth();
+    if (authenticated === null) return null;
+    if (!authenticated) return null;
+    
     const handleSave = () => {
         // Mock save functionality
         setIsEditing(false)
