@@ -89,8 +89,8 @@ const featuredVideos = [
 ]
 
 export const HomeView = () => {
-    const { authenticated } = useAuth();
-    if (authenticated === null) return null;
+    const { isAuthenticated } = useAuth();
+    if (isAuthenticated === null) return null;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -112,22 +112,22 @@ export const HomeView = () => {
                         </div>
 
                         <nav className="hidden md:flex items-center space-x-6">
-                            {!authenticated && (
+                            {!isAuthenticated && (
                                 <Link href="/videos" className="text-slate-600 hover:text-slate-800 transition-colors">
                                     Видеоуроки
                                 </Link>
                             )}
-                            {!authenticated && (
+                            {!isAuthenticated && (
                                 <Link href="/demo" className="text-slate-600 hover:text-slate-800 transition-colors">
                                     Демо
                                 </Link>
                             )}
-                            {authenticated && (
+                            {isAuthenticated && (
                                 <Link href="/profile" className="text-slate-600 hover:text-slate-800 transition-colors">
                                     Профиль
                                 </Link>
                             )}
-                            {!authenticated && (
+                            {!isAuthenticated && (
                                 <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
                                     Войти
                                 </Link>
@@ -162,7 +162,7 @@ export const HomeView = () => {
                                 Начать обучение
                             </Link>
                         </Button>
-                        {!authenticated && (
+                        {!isAuthenticated && (
                             <Button asChild variant="outline" size="lg">
                                 <Link href="/register">Регистрация</Link>
                             </Button>
@@ -243,12 +243,16 @@ export const HomeView = () => {
                 <div className="container mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                         <div>
-                            <div className="flex items-center space-x-2 mb-4">
-                                <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
-                                    <span className="text-white font-bold text-sm">♔</span>
-                                </div>
-                                <h3 className="text-xl font-bold">ChessMaster</h3>
-                            </div>
+                            <Link href="/" className="inline-flex items-center space-x-2">
+                                <Image
+                                    src="/images/chess-logo.png"
+                                    alt="Chester Chess Club"
+                                    width={32}
+                                    height={32}
+                                    className="w-8 h-8 rounded-full object-cover shadow-lg"
+                                />
+                                <h1 className="text-xl font-bold">Chesster Chess Club</h1>
+                            </Link>
                             <p className="text-slate-300">Профессиональное обучение шахматам онлайн</p>
                         </div>
                         <div>
@@ -271,13 +275,13 @@ export const HomeView = () => {
                         <div>
                             <h4 className="font-semibold mb-4">Аккаунт</h4>
                             <ul className="space-y-2 text-slate-300">
-                                {authenticated && (
+                                {isAuthenticated && (
                                     <>
                                         <li><Link href="/profile">Профиль</Link></li>
                                         <li><Link href="/purchases">Покупки</Link></li>
                                     </>
                                 )}
-                                {!authenticated && (
+                                {!isAuthenticated && (
                                     <>
                                         <li><Link href="/login">Войти</Link></li>
                                         <li><Link href="/register">Регистрация</Link></li>

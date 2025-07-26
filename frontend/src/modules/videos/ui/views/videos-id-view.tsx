@@ -72,7 +72,7 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                     <div className="flex items-center justify-between">
                         <Link href="/" className="flex items-center space-x-2">
                             <Image
-                                src="/images/chess-logo.jpg"
+                                src="/images/chess-logo.png"
                                 alt="Chester Chess Club"
                                 className="w-8 h-8 rounded-full object-cover"
                             />
