@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from .crud import UserDatabase
 from src.models import UserTable
+from .schemas import UserUpdate
 
 class UserService:
     def __init__(self, database: UserDatabase):
@@ -38,3 +39,7 @@ class UserService:
     async def update_user_password(self, user_id: UUID, hashed_password: str, db: AsyncSession) -> UserTable:
         user = await self.database.get(db, user_id)
         return await self.database.update(db, db_obj=user, obj_in={"hashed_password": hashed_password})
+
+
+    async def update(self, user_id: UUID, user_update: UserUpdate, db: AsyncSession) -> UserTable:
+        return await self.database.update(db, db_obj=await self.database.get(db, user_id), obj_in=user_update)

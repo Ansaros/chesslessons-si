@@ -9,10 +9,15 @@ from src.modules.auth.schemas import RegisterRequest
 from src.modules.auth.password_manager import PasswordManager
 
 class AuthService:
-    def __init__(self, jwt_service: JWTService, password_manager: PasswordManager, user_service: UserService):
+    def __init__(
+        self, 
+        jwt_service: JWTService, 
+        password_manager: PasswordManager, 
+        user_service: UserService
+        ):
         self.jwt_service = jwt_service
-        self.password_manager = password_manager
         self.user_service = user_service
+        self.password_manager = password_manager
         self.revoked_tokens: dict[str, int] = {}
 
     async def register_user(self, data: RegisterRequest, db: AsyncSession):
