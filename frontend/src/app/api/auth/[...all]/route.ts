@@ -59,7 +59,6 @@ async function forwardToBackend(endpoint: string, options: RequestInit) {
         const data = await response.json();
         console.log('Backend response data:', data);
 
-        // Handle different backend error formats
         if (!response.ok) {
             let normalizedError;
 

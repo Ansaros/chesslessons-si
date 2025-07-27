@@ -65,7 +65,7 @@ export const LoginView = () => {
             if (formData.email === "admin@chessmaster.com") {
                 window.location.href = "/admin";
             } else {
-                window.location.href = "/profile";
+                window.location.href = "/videos";
             }
         } catch (error: unknown) {
             console.error("Login error:", error);

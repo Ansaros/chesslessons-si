@@ -206,16 +206,16 @@ class AuthService {
                 throw errorToThrow;
             }
 
-            const backendFormData = new FormData();
+            const backendFormData = new URLSearchParams();
             Object.entries(cleanedData).forEach(([key, value]) => {
                 if (value !== undefined && value !== null) {
                     backendFormData.append(key, value.toString());
                 }
             });
 
-            const response: AxiosResponse<TokenResponse> = await authApi.post('/login', backendFormData, {
+            const response: AxiosResponse<TokenResponse> = await authApi.post('/login', backendFormData.toString(), {
                 headers: {
-                    'Content-Type': 'multipart/form-data',
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
 

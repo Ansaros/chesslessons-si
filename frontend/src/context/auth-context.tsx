@@ -34,12 +34,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const checkAuth = () => {
         const token = TokenStorage.getAccessToken();
         const authenticated = !!token;
-        
+
         console.log('Auth check - Token exists:', !!token);
         console.log('Auth check - Is remembered:', TokenStorage.isRemembered());
-        
         setIsAuthenticated(authenticated);
-        
 
     };
 
@@ -68,13 +66,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     useEffect(() => {
-        checkAuth();
-        setIsLoading(false);
-        
+        const initialize = () => {
+            checkAuth();
+            setIsLoading(false);
+        };
+
+        initialize();
+
         const interval = setInterval(checkAuth, 60000);
-        
         return () => clearInterval(interval);
     }, []);
+
 
     const value = {
         isAuthenticated,
@@ -112,7 +114,7 @@ export const ProtectedRoute = ({ children, fallback }: ProtectedRouteProps) => {
         if (fallback) {
             return <>{fallback}</>;
         }
-        
+
         if (typeof window !== 'undefined') {
             window.location.href = '/login';
         }

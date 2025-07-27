@@ -112,11 +112,9 @@ export const HomeView = () => {
                         </div>
 
                         <nav className="hidden md:flex items-center space-x-6">
-                            {!isAuthenticated && (
-                                <Link href="/videos" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                    Видеоуроки
-                                </Link>
-                            )}
+                            <Link href="/videos" className="text-slate-600 hover:text-slate-800 transition-colors">
+                                Видеоуроки
+                            </Link>
                             {!isAuthenticated && (
                                 <Link href="/demo" className="text-slate-600 hover:text-slate-800 transition-colors">
                                     Демо
