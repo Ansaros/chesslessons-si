@@ -61,7 +61,7 @@ class VideoRead(VideoBase):
     created_at: Optional[datetime] = None
     attributes: Optional[list[AttributeTypedValueRead]] = None
     hls_segments: dict[str, str] = {}
-    views_count: int
+    views_count: int = 0
 
 class VideoShortRead(BaseModel):
     id: UUID
