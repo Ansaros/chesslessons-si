@@ -1,8 +1,8 @@
 from uuid import UUID
 from typing import Optional
 
-from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.crudbase import CRUDBase
@@ -55,3 +55,13 @@ class VideoDatabase(CRUDBase[VideoTable, VideoUpdate, VideoCreate]):
     async def log_view(self, db: AsyncSession, user_id: UUID, video_id: UUID):
         db.add(ViewLogTable(user_id=user_id, video_id=video_id))
         await db.flush()
+
+
+    async def get_views_count_map(self, db: AsyncSession, video_ids: list[UUID]) -> dict[UUID, int]:
+        stmt = (
+            select(ViewLogTable.video_id, func.count().label("count"))
+            .where(ViewLogTable.video_id.in_(video_ids))
+            .group_by(ViewLogTable.video_id)
+        )
+        result = await db.execute(stmt)
+        return {row.video_id: row.count for row in result.fetchall()}

@@ -91,11 +91,20 @@ class VideoService:
 
     async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoRead]:
         videos = await self.database.get_multi(db, skip, limit, options=[
-                selectinload(VideoTable.attributes)
-                .selectinload(VideoAttributeLinkTable.attribute_value)
-                .selectinload(AttributeValueTable.type)
-            ])
-        return [self.utils.attach_presigned_urls(video) for video in videos]
+            selectinload(VideoTable.attributes)
+            .selectinload(VideoAttributeLinkTable.attribute_value)
+            .selectinload(AttributeValueTable.type)
+        ])
+
+        video_ids = [v.id for v in videos]
+        views_map = await self.database.get_views_count_map(db, video_ids)
+
+        return [
+            self.utils.attach_presigned_urls(video).model_copy(update={
+                "views_count": views_map.get(video.id, 0)
+            })
+            for video in videos
+        ]
     
 
     async def filter_videos_by_attributes(self, access_level: Optional[int], attribute_value_ids: Optional[list[UUID]], db: AsyncSession) -> tuple[list[VideoShortRead], int]:
