@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -37,7 +38,8 @@ import {
     Save
 } from "lucide-react"
 
-import { useAuth } from "@/hooks/use-auth"
+// import { useAuth } from "@/hooks/use-auth"
+import { authService, TokenStorage } from "@/services/auth/auth-service"
 
 // Mock user data
 const userData = {
@@ -107,7 +109,9 @@ const purchasedVideos = [
 ]
 
 export const ProfileView = () => {
-
+    const router = useRouter();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [userEmail, setUserEmail] = useState<string>('');
     const [isEditing, setIsEditing] = useState(false)
     const [editData, setEditData] = useState({
         firstName: userData.firstName,
@@ -115,15 +119,30 @@ export const ProfileView = () => {
         email: userData.email,
     })
 
-    const { authenticated } = useAuth();
-    if (authenticated === null) return null;
-    if (!authenticated) return null;
-    
     const handleSave = () => {
-        // Mock save functionality
         setIsEditing(false)
-        // In real app, would update userData
     }
+
+    useEffect(() => {
+        const token = TokenStorage.getAccessToken();
+        if (token) {
+            setUserEmail('user@example.com');
+        }
+    }, []);
+
+    const handleLogout = async () => {
+        setIsLoggingOut(true);
+        try {
+            await authService.logout();
+            console.log('Logout successful, redirecting to login');
+            router.push('/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+            router.push('/login');
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -132,7 +151,7 @@ export const ProfileView = () => {
                     <div className="flex items-center justify-between">
                         <Link href="/" className="flex items-center space-x-2">
                             <Image
-                                src="/images/chess-logo.jpg"
+                                src="/images/chess-logo.png"
                                 alt="Chester Chess Club"
                                 width={32}
                                 height={32}

@@ -87,7 +87,7 @@ export const SubscriptionView = () =>  {
                     <div className="flex items-center justify-between">
                         <Link href="/" className="flex items-center space-x-2">
                             <Image
-                                src="/images/chess-logo.jpg"
+                                src="/images/chess-logo.png"
                                 alt="Chester Chess Club"
                                 width={32}
                                 height={32}

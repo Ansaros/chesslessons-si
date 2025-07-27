@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { verifyJWT } from "@/lib/jwt";
 
 import { VideoData } from "./types";
-import { VideoService } from "./services/video";
+import { VideoService } from "../../services/videos/videos-service";
 
 
 const extractTokenFromHeader = (authHeader: string | null): string | null => {

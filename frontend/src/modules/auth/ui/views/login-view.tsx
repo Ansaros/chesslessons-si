@@ -18,26 +18,68 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
+import { authService } from "@/services/auth/auth-service";
+
+interface ErrorDetail {
+  msg: string;
+}
+
+interface APIError {
+  detail?: ErrorDetail[];
+  message?: string;
+}
 
 export const LoginView = () => {
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string>("");
     const [formData, setFormData] = useState({
         email: "",
         password: "",
         rememberMe: false,
     });
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault()
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError("");
 
-        if (formData.email === "admin@chessmaster.com" && formData.password === "admin1123") {
-            window.location.href = "/admin"
-        } else {
-            window.location.href = "/profile"
+        try {
+            const loginFormData = new FormData();
+            loginFormData.append("username", formData.email);
+            loginFormData.append("password", formData.password);
+            loginFormData.append("grant_type", "password");
+
+            const response = await authService.login(loginFormData, formData.rememberMe);
+
+            console.log("Login successful:", response);
+
+            if (formData.email === "admin@chessmaster.com") {
+                window.location.href = "/admin";
+            } else {
+                window.location.href = "/profile";
+            }
+        } catch (error: unknown) {
+            console.error("Login error:", error);
+
+            if (typeof error === "object" && error !== null && "detail" in error) {
+                const apiError = error as APIError;
+
+                if (Array.isArray(apiError.detail)) {
+                    const errorMessage = apiError.detail.map(err => err.msg).join(", ");
+                    setError(errorMessage);
+                } else {
+                    setError("Неверные учетные данные");
+                }
+            } else {
+                setError("Произошла непредвиденная ошибка");
+            }
+        } finally {
+            setIsLoading(false);
         }
-    }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
@@ -65,6 +107,12 @@ export const LoginView = () => {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
+                            {error && (
+                                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                                    {error}
+                                </div>
+                            )}
+
                             <div className="grid gap-3">
                                 <Label htmlFor="email">Email</Label>
                                 <Input
@@ -74,6 +122,7 @@ export const LoginView = () => {
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="your@gmail.com"
                                     required
+                                    disabled={isLoading}
                                 />
                             </div>
 
@@ -87,6 +136,7 @@ export const LoginView = () => {
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         placeholder="Введите пароль"
                                         required
+                                        disabled={isLoading}
                                     />
                                     <Button
                                         type="button"
@@ -94,6 +144,7 @@ export const LoginView = () => {
                                         size="sm"
                                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                                         onClick={() => setShowPassword(!showPassword)}
+                                        disabled={isLoading}
                                     >
                                         {showPassword ? (
                                             <EyeOff className="h-4 w-4 text-slate-400" />
@@ -110,8 +161,9 @@ export const LoginView = () => {
                                         id="rememberMe"
                                         checked={formData.rememberMe}
                                         onCheckedChange={(checked) => setFormData({ ...formData, rememberMe: checked as boolean })}
+                                        disabled={isLoading}
                                     />
-                                    <Label htmlFor="remember" className="text-sm">
+                                    <Label htmlFor="rememberMe" className="text-sm">
                                         Запомнить меня
                                     </Label>
                                 </div>
@@ -120,8 +172,19 @@ export const LoginView = () => {
                                 </Link>
                             </div>
 
-                            <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700">
-                                Войти
+                            <Button
+                                type="submit"
+                                className="w-full bg-amber-600 hover:bg-amber-700"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Вход...
+                                    </>
+                                ) : (
+                                    "Войти"
+                                )}
                             </Button>
                         </form>
 
@@ -137,5 +200,5 @@ export const LoginView = () => {
                 </Card>
             </div>
         </div>
-    )
-}
+    );
+};
