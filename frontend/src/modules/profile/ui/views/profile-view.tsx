@@ -40,6 +40,7 @@ import {
 
 // import { useAuth } from "@/hooks/use-auth"
 import { authService, TokenStorage } from "@/services/auth/auth-service"
+import { LogoutButton } from "@/modules/auth/ui/components/logout-component"
 
 // Mock user data
 const userData = {
@@ -168,9 +169,13 @@ export const ProfileView = () => {
                             <Link href="/profile" className="text-amber-600 font-medium">
                                 Профиль
                             </Link>
-                            <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Выйти
-                            </Link>
+                            <LogoutButton
+                                variant="ghost"
+                                size="sm"
+                                className="text-slate-600 hover:text-slate-800"
+                                showIcon={true}
+                                showText={true}
+                            />
                         </nav>
                     </div>
                 </div>

@@ -206,7 +206,6 @@ class AuthService {
                 throw errorToThrow;
             }
 
-            // Note: Remove client-side validation for login since server handles it
             const backendFormData = new FormData();
             Object.entries(cleanedData).forEach(([key, value]) => {
                 if (value !== undefined && value !== null) {
@@ -238,7 +237,6 @@ class AuthService {
                 throw errorToThrow;
             }
 
-            // If it's already a structured error, re-throw it
             if (error && typeof error === 'object' && 'detail' in error) {
                 throw error;
             }

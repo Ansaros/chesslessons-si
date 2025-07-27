@@ -45,6 +45,7 @@ import {
     Settings,
     BarChart3
 } from "lucide-react"
+import { LogoutButton } from "@/modules/auth/ui/components/logout-component"
 
 
 // interface Props {
@@ -176,9 +177,13 @@ export const AdminView = () => {
                             <Link href="/" className="text-slate-600 hover:text-slate-800 transition-colors">
                                 На сайт
                             </Link>
-                            <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Выйти
-                            </Link>
+                            <LogoutButton
+                                variant="ghost"
+                                size="sm"
+                                className="text-slate-600 hover:text-slate-800"
+                                showIcon={true}
+                                showText={true}
+                            />
                         </nav>
                     </div>
                 </div>
