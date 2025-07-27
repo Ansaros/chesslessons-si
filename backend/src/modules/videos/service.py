@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .utils import VideoUtils
 from .crud import VideoDatabase
 from src.core.config import Config
-from .schemas import VideoCreate, VideoUpdate, VideoRead
+from .schemas import VideoCreate, VideoUpdate, VideoRead, VideoShortRead
 from src.models import VideoTable, VideoAttributeLinkTable, AttributeValueTable, UserTable
 
 class VideoService:
@@ -98,7 +98,7 @@ class VideoService:
         return [self.utils.attach_presigned_urls(video) for video in videos]
     
 
-    async def filter_videos_by_attributes(self, access_level: Optional[int], attribute_value_ids: Optional[list[UUID]], db: AsyncSession) -> tuple[list[VideoRead], int]:
+    async def filter_videos_by_attributes(self, access_level: Optional[int], attribute_value_ids: Optional[list[UUID]], db: AsyncSession) -> tuple[list[VideoShortRead], int]:
         videos = await self.database.filter_by_access_and_attributes(db, access_level, attribute_value_ids)
         return [self.utils.attach_presigned_urls(v) for v in videos], len(videos)
 
