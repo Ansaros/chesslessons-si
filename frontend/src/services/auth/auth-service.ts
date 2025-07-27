@@ -1,8 +1,9 @@
 import axios, { AxiosResponse } from 'axios';
 import { z } from 'zod';
+import { CHESS_LEVEL_IDS } from './chess-level';
 
 const registerSchema = z.object({
-    email: z.string().email("Неверный формат почты"),
+    email: z.email("Неверный формат почты"),
     password: z.string().min(1, "Укажите пароль"),
     chess_level: z.string().min(1, "Укажите ваш уровень игры"),
 })
@@ -52,7 +53,7 @@ const createValidationError = (field: string, message: string): ValidationError 
 });
 
 const authApi = axios.create({
-    baseURL: '/api/auth',
+    baseURL: `${process.env.NEXT_PUBLIC_API_BACKEND_URL}/auth`,
     timeout: 10000,
 });
 
@@ -111,20 +112,22 @@ class TokenStorage {
 class AuthService {
     async register(data: { email: string; password: string; chess_level: string }): Promise<TokenResponse> {
         try {
-            console.log('Starting registration with data:', { ...data, password: '[REDACTED]' });
+            const levelUuid = CHESS_LEVEL_IDS[data.chess_level as keyof typeof CHESS_LEVEL_IDS];
+            if (!levelUuid) {
+                throw { detail: [{ loc: ['chess_level'], msg: 'Unknown chess level', type: 'value_error' }], status: 422 };
+            }
 
-            const validatedData = registerSchema.parse(data);
+            const payload = { email: data.email, password: data.password, chess_level: levelUuid };
+            console.log('Starting registration with payload:', { ...payload, password: '[REDACTED]' });
+
+            const validatedData = registerSchema.parse(payload);
             console.log('Data validation passed');
 
             const response: AxiosResponse<TokenResponse> = await authApi.post('/register', validatedData, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' },
             });
-
             console.log('Registration API call successful:', response.status);
             return response.data;
-
         } catch (error) {
             console.log('Registration error caught:', error);
 

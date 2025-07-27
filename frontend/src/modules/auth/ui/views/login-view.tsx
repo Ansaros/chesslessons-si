@@ -62,7 +62,7 @@ export const LoginView = () => {
             console.log("Login successful:", response);
             console.log("Tokens stored, remember me:", formData.rememberMe);
 
-            if (formData.email === "admin@chessmaster.com") {
+            if (formData.email === "admin@chessmaster.com" && formData.password === "admin123") {
                 window.location.href = "/admin";
             } else {
                 window.location.href = "/videos";

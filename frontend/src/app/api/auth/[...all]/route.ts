@@ -4,7 +4,7 @@ import { z } from "zod"
 const NEXT_PUBLIC_API_BACKEND_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL;
 
 const registerSchema = z.object({
-    email: z.string().email("Неверный формат почты"),
+    email: z.email("Неверный формат почты"),
     password: z.string().min(1, "Укажите пароль"),
     chess_level: z.string().min(1, "Укажите ваш уровень игры"),
 });

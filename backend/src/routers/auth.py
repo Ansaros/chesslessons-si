@@ -23,7 +23,7 @@ async def register_user_route(
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    access_token, refresh_token = await auth_service.wregister_user(data, db)
+    access_token, refresh_token = await auth_service.register_user(data, db)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 

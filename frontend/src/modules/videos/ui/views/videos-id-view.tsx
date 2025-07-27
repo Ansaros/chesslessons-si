@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -18,52 +17,156 @@ import {
 
 import { VideoPlayer } from "../components/video-player"
 
-const videoData = {
-    1: {
-        id: 1,
-        title: "Сицилианская защита: Вариант Найдорфа",
-        description: "Подробный разбор одного из самых популярных вариантов сицилианской защиты.",
-        price: 2500,
-        access: 1,
-        category: "Дебюты",
-        instructor: "ГМ Иванов А.С.",
-        rating: 4.8,
-        views: 1250,
-        duration: "15:30",
-        isPurchased: false,
-    },
-    3: {
-        id: 3,
-        title: "Тактика: Двойной удар",
-        description: "Мастер-класс по одному из самых эффективных тактических приемов.",
-        price: 1800,
-        access: 1,
-        category: "Тактика",
-        instructor: "ГМ Сидоров В.П.",
-        rating: 4.7,
-        views: 890,
-        duration: "12:45",
-        isPurchased: true, // Для демо
-    },
+// API Types
+interface VideoAttribute {
+    type: string;
+    value: string;
+}
+
+interface VideoDetails {
+    id: string;
+    title: string;
+    description: string;
+    access_level: 0 | 1 | 2;
+    price: string;
+    preview_url: string;
+    hls_url: string;
+    created_at: string;
+    attributes: VideoAttribute[];
+    hls_segments: Record<string, unknown>;
+    views_count: number;
+}
+
+// Helper function to get attribute value
+const getAttributeValue = (attributes: VideoAttribute[], type: string): string => {
+    return attributes.find(attr => attr.type === type)?.value || "";
+}
+
+const getCategoryLabel = (value: string): string => {
+    const categories: { [key: string]: string } = {
+        "debuts": "Дебюты",
+        "strategy": "Стратегии", 
+        "tactics": "Тактика",
+        "endgame": "Эндшпиль"
+    };
+    return categories[value] || value;
 }
 
 export const VideosIdView = ({ params }: { params: { id: string } }) => {
-    const videoId = Number.parseInt(params.id)
-    const video = videoData[videoId as keyof typeof videoData]
-    const [showPurchaseModal, setShowPurchaseModal] = useState(false)
+    const [video, setVideo] = useState<VideoDetails | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+    const [isPurchased, setIsPurchased] = useState(false);
 
-    if (!video) {
+    const videoId = params.id;
+
+    // Fetch video details from API
+    const fetchVideoDetails = useCallback(async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BACKEND_URL}/videos/${videoId}`);
+            
+            if (response.status === 404) {
+                setError("Видео не найдено");
+                return;
+            }
+            
+            if (response.status === 403) {
+                setVideo(prev => prev ? { ...prev, access_level: 1 as const } : null);
+                setError("Нет доступа к видео");
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const videoData: VideoDetails = await response.json();
+            setVideo(videoData);
+            
+            // Check if user has purchased this video (you'll need to implement this logic)
+            // For now, we'll assume free videos are "purchased"
+            setIsPurchased(videoData.access_level === 0);
+            
+            setError(null);
+        } catch (err) {
+            console.error("Error fetching video details:", err);
+            setError("Ошибка при загрузке видео");
+        } finally {
+            setLoading(false);
+        }
+    }, [videoId]);
+
+    useEffect(() => {
+        if (videoId) {
+            fetchVideoDetails();
+        }
+    }, [videoId, fetchVideoDetails]);
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+                <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+                    <div className="container mx-auto px-4 py-4">
+                        <div className="flex items-center justify-between">
+                            <Link href="/" className="flex items-center space-x-2">
+                                <Image
+                                    src="/images/chess-logo.png"
+                                    alt="Chester Chess Club"
+                                    className="w-8 h-8 rounded-full object-cover"
+                                />
+                                <div>
+                                    <h1 className="text-lg font-bold text-slate-800">Chester Chess Club</h1>
+                                </div>
+                            </Link>
+                            <nav className="flex items-center space-x-6">
+                                <Button variant="ghost" asChild>
+                                    <Link href="/videos">
+                                        <ArrowLeft className="w-4 h-4 mr-2" />
+                                        Назад
+                                    </Link>
+                                </Button>
+                            </nav>
+                        </div>
+                    </div>
+                </header>
+
+                <div className="container mx-auto px-4 py-8">
+                    <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+                            <p className="text-slate-600">Загрузка видео...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Error state or video not found
+    if (error || !video) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold text-slate-800 mb-2">Видео не найдено</h1>
+                    <h1 className="text-2xl font-bold text-slate-800 mb-2">
+                        {error || "Видео не найдено"}
+                    </h1>
                     <Link href="/videos">
                         <Button>Вернуться к видео</Button>
                     </Link>
                 </div>
             </div>
-        )
+        );
     }
+
+    // Extract video attributes
+    const category = getAttributeValue(video.attributes, "category");
+    const instructor = getAttributeValue(video.attributes, "instructor");
+    const duration = getAttributeValue(video.attributes, "duration");
+    const rating = getAttributeValue(video.attributes, "rating");
+    const skillLevel = getAttributeValue(video.attributes, "skill_level");
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -100,11 +203,11 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                     {/* Video Player */}
                     <div className="mb-6">
                         <VideoPlayer
-                            videoId={video.id.toString()}
-                            isPurchased={video.access === 0 || video.isPurchased}
+                            videoId={video.id}
+                            isPurchased={video.access_level === 0 || isPurchased}
                             onPurchaseClick={() => setShowPurchaseModal(true)}
                             title={video.title}
-                            price={video.price}
+                            price={video.price ? Number(video.price) : 0}
                         />
                     </div>
 
@@ -112,40 +215,44 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                         <div className="flex items-start justify-between mb-6">
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-3">
-                                    <Badge variant="outline">{video.category}</Badge>
-                                    {video.access === 0 ? (
+                                    <Badge variant="outline">{getCategoryLabel(category)}</Badge>
+                                    {video.access_level === 0 ? (
                                         <Badge className="bg-green-500">Бесплатно</Badge>
                                     ) : (
-                                        <Badge className="bg-amber-500">{video.price.toLocaleString()} ₸</Badge>
+                                        <Badge className="bg-amber-500">
+                                            {video.price ? `${Number(video.price).toLocaleString()} ₸` : "Платно"}
+                                        </Badge>
                                     )}
-                                    {video.isPurchased && video.access === 1 && <Badge className="bg-blue-500">Куплено</Badge>}
+                                    {isPurchased && video.access_level > 0 && (
+                                        <Badge className="bg-blue-500">Куплено</Badge>
+                                    )}
                                 </div>
                                 <h1 className="text-3xl font-bold text-slate-800 mb-3">{video.title}</h1>
                                 <div className="flex items-center gap-6 text-sm text-slate-600 mb-4">
                                     <div className="flex items-center gap-2">
                                         <User className="w-4 h-4" />
-                                        <span>{video.instructor}</span>
+                                        <span>{instructor || "Не указан"}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                                        <span>{video.rating}</span>
+                                        <span>{rating || "0.0"}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Eye className="w-4 h-4" />
-                                        <span>{video.views.toLocaleString()} просмотров</span>
+                                        <span>{video.views_count.toLocaleString()} просмотров</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4" />
-                                        <span>{video.duration}</span>
+                                        <span>{duration || "00:00"}</span>
                                     </div>
                                 </div>
                             </div>
-                            {!video.isPurchased && video.access === 1 && (
+                            {!isPurchased && video.access_level > 0 && video.price && (
                                 <Button
                                     onClick={() => setShowPurchaseModal(true)}
                                     className="bg-amber-600 hover:bg-amber-700 text-lg px-6 py-3"
                                 >
-                                    Купить за {video.price.toLocaleString()} ₸
+                                    Купить за {Number(video.price).toLocaleString()} ₸
                                 </Button>
                             )}
                         </div>
@@ -155,12 +262,12 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                 </div>
             </div>
 
-            {showPurchaseModal && (
+            {showPurchaseModal && video.price && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg p-8 max-w-md w-full">
                         <h3 className="text-2xl font-bold text-slate-800 mb-4">Приобрести доступ</h3>
                         <p className="text-slate-600 mb-6">
-                            Получите доступ к видео &quot;{video.title}&quot; за {video.price.toLocaleString()} ₸
+                            Получите доступ к видео &quot;{video.title}&quot; за {Number(video.price).toLocaleString()} ₸
                         </p>
                         <div className="flex gap-3">
                             <Button
