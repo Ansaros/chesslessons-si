@@ -19,7 +19,7 @@ class UserService:
         try:
             existing = await self.database.get_objects(db, email=email)
             if existing:
-                raise HTTPException(status_code=400, detail="Пользователь с такой почтой уже существует")
+                raise HTTPException(status_code=400, detail="User with this email already exists")
         except HTTPException as e:
             if e.status_code != 404:
                 raise
