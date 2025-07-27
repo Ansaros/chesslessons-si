@@ -14,7 +14,7 @@ router = APIRouter()
 async def get_profile(
     current_user: UserTable = Depends(get_current_user),
 ):
-    return await current_user
+    return current_user
 
 
 @router.put("", response_model=UserBase, summary="Update user profile")
