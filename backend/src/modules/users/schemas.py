@@ -3,7 +3,7 @@ from uuid import UUID
 from datetime import datetime
 
 
-class wUserBase(BaseModel):
+class UserBase(BaseModel):
     email: EmailStr
     chess_level_id: UUID
 
