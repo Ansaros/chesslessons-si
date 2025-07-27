@@ -28,6 +28,14 @@ import {
     CardHeader,
     CardTitle
 } from "@/components/ui/card"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from "@/components/ui/select"
+import { toast } from "sonner"
 
 import {
     Settings,
@@ -35,27 +43,15 @@ import {
     Play,
     Star,
     Edit,
-    Save
+    Save,
+    Loader2
 } from "lucide-react"
 
-// import { useAuth } from "@/hooks/use-auth"
 import { authService, TokenStorage } from "@/services/auth/auth-service"
+import { profileService, Profile, ProfileUpdate, PasswordUpdate, ChessLevel } from "@/services/profile/profile-service"
 import { LogoutButton } from "@/modules/auth/ui/components/logout-component"
 
-// Mock user data
-const userData = {
-    id: 1,
-    firstName: "Алексей",
-    lastName: "Иванов",
-    email: "alexey@example.com",
-    avatar: "/placeholder.svg?height=100&width=100",
-    joinDate: "2024-01-15",
-    totalPurchases: 5,
-    totalSpent: 12500,
-    favoriteCategory: "Дебюты",
-}
-
-// Mock purchased videos
+// Mock purchased videos (keeping this for now as it's not part of the profile API)
 const purchasedVideos = [
     {
         id: 1,
@@ -112,24 +108,82 @@ const purchasedVideos = [
 export const ProfileView = () => {
     const router = useRouter();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [userEmail, setUserEmail] = useState<string>('');
-    const [isEditing, setIsEditing] = useState(false)
-    const [editData, setEditData] = useState({
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-    })
+    const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [chessLevels, setChessLevels] = useState<ChessLevel[]>([]);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [editData, setEditData] = useState<ProfileUpdate>({
+        chess_level_id: ""
+    });
+    const [passwordData, setPasswordData] = useState<PasswordUpdate>({
+        password: ""
+    });
 
-    const handleSave = () => {
-        setIsEditing(false)
-    }
-
+    // Initialize profile service with token
     useEffect(() => {
         const token = TokenStorage.getAccessToken();
         if (token) {
-            setUserEmail('user@example.com');
+            profileService.setToken(token);
+            fetchProfile();
+            fetchChessLevels();
+        } else {
+            router.push('/login');
         }
-    }, []);
+    }, [router]);
+
+    const fetchProfile = async () => {
+        try {
+            setLoading(true);
+            const profileData = await profileService.getProfile();
+            setProfile(profileData);
+            setEditData({ chess_level_id: profileData.chess_level_id });
+        } catch (error) {
+            console.error("Error fetching profile:", error);
+            toast.error("Не удалось загрузить профиль");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchChessLevels = async () => {
+        try {
+            const levels = await profileService.getChessLevels();
+            setChessLevels(levels);
+        } catch (error) {
+            console.error("Error fetching chess levels:", error);
+            toast.error("Не удалось загрузить уровни игры");
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        try {
+            const updatedProfile = await profileService.updateProfile(editData);
+            setProfile(updatedProfile);
+            setIsEditing(false);
+            toast.success("Профиль успешно обновлен");
+        } catch (error) {
+            console.error("Error updating profile:", error);
+            toast.error("Не удалось обновить профиль");
+        }
+    };
+
+    const handleChangePassword = async () => {
+        try {
+            await profileService.updatePassword(passwordData);
+            setPasswordData({ password: "" });
+            setIsChangingPassword(false);
+            toast.success("Пароль успешно изменен");
+        } catch (error) {
+            console.error("Error changing password:", error);
+            toast.error("Не удалось изменить пароль");
+        }
+    };
+
+    const getChessLevelName = (chessLevelId: string): string => {
+        const level = chessLevels.find(l => l.id === chessLevelId);
+        return level?.value || "Неизвестный уровень";
+    };
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -144,6 +198,28 @@ export const ProfileView = () => {
             setIsLoggingOut(false);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <span>Загрузка профиля...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-slate-600 mb-4">Не удалось загрузить профиль</p>
+                    <Button onClick={() => fetchProfile()}>Попробовать снова</Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -188,40 +264,37 @@ export const ProfileView = () => {
                             <CardHeader className="text-center">
                                 <Avatar className="w-24 h-24 mx-auto mb-4">
                                     <AvatarImage
-                                        src={userData.avatar || "/placeholder.svg"}
-                                        alt={`${userData.firstName} ${userData.lastName}`}
+                                        src="/placeholder.svg"
+                                        alt={profile.email}
                                     />
                                     <AvatarFallback className="text-2xl">
-                                        {userData.firstName[0]}
-                                        {userData.lastName[0]}
+                                        {profile.email[0].toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <CardTitle>
-                                    {userData.firstName} {userData.lastName}
+                                    {profile.email}
                                 </CardTitle>
-                                <CardDescription>{userData.email}</CardDescription>
+                                <CardDescription>Пользователь</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm text-slate-600">Дата регистрации:</span>
-                                        <span className="text-sm font-medium">
-                                            {new Date(userData.joinDate).toLocaleDateString("ru-RU")}
-                                        </span>
+                                        <span className="text-sm text-slate-600">Email:</span>
+                                        <span className="text-sm font-medium">{profile.email}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-slate-600">Уровень игры:</span>
+                                        <Badge>{getChessLevelName(profile.chess_level_id)}</Badge>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-slate-600">Покупок:</span>
-                                        <Badge>{userData.totalPurchases}</Badge>
+                                        <Badge>{purchasedVideos.length}</Badge>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-slate-600">Потрачено:</span>
                                         <span className="text-sm font-semibold text-amber-600">
-                                            {userData.totalSpent.toLocaleString()} ₸
+                                            {purchasedVideos.reduce((sum, v) => sum + v.price, 0).toLocaleString()} ₸
                                         </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-slate-600">Любимая категория:</span>
-                                        <Badge variant="outline">{userData.favoriteCategory}</Badge>
                                     </div>
                                 </div>
                             </CardContent>
@@ -396,7 +469,7 @@ export const ProfileView = () => {
                                                 </Button>
                                             ) : (
                                                 <div className="flex gap-2">
-                                                    <Button onClick={handleSave}>
+                                                    <Button onClick={handleSaveProfile}>
                                                         <Save className="w-4 h-4 mr-2" />
                                                         Сохранить
                                                     </Button>
@@ -409,64 +482,77 @@ export const ProfileView = () => {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <Label htmlFor="firstName">Имя</Label>
-                                                    <Input
-                                                        id="firstName"
-                                                        value={editData.firstName}
-                                                        onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
-                                                        disabled={!isEditing}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label htmlFor="lastName">Фамилия</Label>
-                                                    <Input
-                                                        id="lastName"
-                                                        value={editData.lastName}
-                                                        onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
-                                                        disabled={!isEditing}
-                                                    />
-                                                </div>
-                                            </div>
                                             <div>
                                                 <Label htmlFor="email">Email</Label>
                                                 <Input
                                                     id="email"
                                                     type="email"
-                                                    value={editData.email}
-                                                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                                                    disabled={!isEditing}
+                                                    value={profile.email}
+                                                    disabled
+                                                    className="bg-slate-50"
                                                 />
+                                                <p className="text-xs text-slate-500 mt-1">Email нельзя изменить</p>
+                                            </div>
+
+                                            <div>
+                                                <Label htmlFor="chessLevel">Уровень игры</Label>
+                                                <Select
+                                                    value={editData.chess_level_id}
+                                                    onValueChange={(value) => setEditData({ ...editData, chess_level_id: value })}
+                                                    disabled={!isEditing}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Выберите уровень игры" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {chessLevels.map((level) => (
+                                                            <SelectItem key={level.id} value={level.id}>
+                                                                {level.value}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
 
                                             <div className="pt-6 border-t">
                                                 <h4 className="font-semibold text-slate-800 mb-4">Безопасность</h4>
                                                 <div className="space-y-3">
-                                                    <Button variant="outline" className="w-full justify-start bg-transparent">
-                                                        Изменить пароль
-                                                    </Button>
-                                                    <Button variant="outline" className="w-full justify-start bg-transparent">
-                                                        Двухфакторная аутентификация
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            <div className="pt-6 border-t">
-                                                <h4 className="font-semibold text-slate-800 mb-4">Уведомления</h4>
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm">Email уведомления</span>
-                                                        <Button variant="outline" size="sm">
-                                                            Настроить
+                                                    {!isChangingPassword ? (
+                                                        <Button 
+                                                            variant="outline" 
+                                                            className="w-full justify-start bg-transparent"
+                                                            onClick={() => setIsChangingPassword(true)}
+                                                        >
+                                                            Изменить пароль
                                                         </Button>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm">Новые видео</span>
-                                                        <Button variant="outline" size="sm">
-                                                            Настроить
-                                                        </Button>
-                                                    </div>
+                                                    ) : (
+                                                        <div className="space-y-3 p-4 border rounded-lg">
+                                                            <div>
+                                                                <Label htmlFor="newPassword">Новый пароль</Label>
+                                                                <Input
+                                                                    id="newPassword"
+                                                                    type="password"
+                                                                    value={passwordData.password}
+                                                                    onChange={(e) => setPasswordData({ password: e.target.value })}
+                                                                    placeholder="Введите новый пароль"
+                                                                />
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <Button onClick={handleChangePassword}>
+                                                                    Сохранить пароль
+                                                                </Button>
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    onClick={() => {
+                                                                        setIsChangingPassword(false);
+                                                                        setPasswordData({ password: "" });
+                                                                    }}
+                                                                >
+                                                                    Отмена
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

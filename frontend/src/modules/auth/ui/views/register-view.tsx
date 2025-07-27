@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import Link from "next/link"
 import Image from "next/image"
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select"
 
 import { authService } from "@/services/auth/auth-service"
+import { profileService, ChessLevel } from "@/services/profile/profile-service"
 
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 
@@ -49,6 +50,8 @@ export const RegisterView = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>("");
     const [success, setSuccess] = useState<string>("");
+    const [chessLevels, setChessLevels] = useState<ChessLevel[]>([]);
+    const [loadingLevels, setLoadingLevels] = useState(true);
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -58,6 +61,30 @@ export const RegisterView = () => {
         skillLevel: "",
         agreeToTerms: false,
     });
+
+    // Fetch chess levels on component mount
+    useEffect(() => {
+        fetchChessLevels();
+    }, []);
+
+    const fetchChessLevels = async () => {
+        try {
+            setLoadingLevels(true);
+            const levels = await profileService.getChessLevels();
+            setChessLevels(levels);
+        } catch (error) {
+            console.error("Error fetching chess levels:", error);
+            // Fallback to basic levels if API is not available
+            setChessLevels([
+                { id: "beginner", value: "Начинающий" },
+                { id: "amateur", value: "Любитель" },
+                { id: "master", value: "Мастер" },
+                { id: "grandmaster", value: "Гроссмейстер" }
+            ]);
+        } finally {
+            setLoadingLevels(false);
+        }
+    };
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,7 +166,6 @@ export const RegisterView = () => {
             setIsLoading(false);
         }
     };
-
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
@@ -280,16 +306,17 @@ export const RegisterView = () => {
                                 <Select
                                     value={formData.skillLevel}
                                     onValueChange={(value) => setFormData({ ...formData, skillLevel: value })}
-                                    disabled={isLoading}
+                                    disabled={isLoading || loadingLevels}
                                 >
                                     <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Выберите ваш уровень" />
+                                        <SelectValue placeholder={loadingLevels ? "Загрузка уровней..." : "Выберите ваш уровень"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="beginner">Начинающий</SelectItem>
-                                        <SelectItem value="rank-4-3">4-3 разряд</SelectItem>
-                                        <SelectItem value="rank-2-1">2-1 разряд</SelectItem>
-                                        <SelectItem value="master">КМС и выше</SelectItem>
+                                        {chessLevels.map((level) => (
+                                            <SelectItem key={level.id} value={level.id}>
+                                                {level.value}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

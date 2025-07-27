@@ -1,6 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
 import { z } from 'zod';
-import { CHESS_LEVEL_IDS } from './chess-level';
 
 const registerSchema = z.object({
     email: z.email("Неверный формат почты"),
@@ -52,8 +51,12 @@ const createValidationError = (field: string, message: string): ValidationError 
     }]
 });
 
+// Debug environment variable
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL;
+console.log('API_BASE_URL from env:', API_BASE_URL);
+
 const authApi = axios.create({
-    baseURL: `${process.env.NEXT_PUBLIC_API_BACKEND_URL}/auth`,
+    baseURL: `http://159.65.223.248:8000/auth`,
     timeout: 10000,
 });
 
@@ -112,12 +115,8 @@ class TokenStorage {
 class AuthService {
     async register(data: { email: string; password: string; chess_level: string }): Promise<TokenResponse> {
         try {
-            const levelUuid = CHESS_LEVEL_IDS[data.chess_level as keyof typeof CHESS_LEVEL_IDS];
-            if (!levelUuid) {
-                throw { detail: [{ loc: ['chess_level'], msg: 'Unknown chess level', type: 'value_error' }], status: 422 };
-            }
-
-            const payload = { email: data.email, password: data.password, chess_level: levelUuid };
+            // Pass chess level name directly to backend, let backend handle UUID conversion
+            const payload = { email: data.email, password: data.password, chess_level: data.chess_level };
             console.log('Starting registration with payload:', { ...payload, password: '[REDACTED]' });
 
             const validatedData = registerSchema.parse(payload);
@@ -168,6 +167,7 @@ class AuthService {
     async login(formData: FormData, rememberMe: boolean = false): Promise<TokenResponse> {
         try {
             console.log('Starting login process');
+            console.log('Auth API baseURL:', authApi.defaults.baseURL);
 
             const loginData = {
                 grant_type: formData.get("grant_type"),
@@ -216,11 +216,16 @@ class AuthService {
                 }
             });
 
+            console.log('Making request to:', `${authApi.defaults.baseURL}/login`);
+            console.log('Request data:', { ...cleanedData, password: '[REDACTED]' });
+
             const response: AxiosResponse<TokenResponse> = await authApi.post('/login', backendFormData.toString(), {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
+
+            console.log('Login response:', response.status, response.data);
 
             TokenStorage.setTokens(
                 response.data.access_token,
@@ -233,6 +238,7 @@ class AuthService {
             console.log('Login error caught:', error);
 
             if (axios.isAxiosError(error)) {
+                console.log('Axios error config:', error.config);
                 const errorToThrow = {
                     detail: error.response?.data?.detail || createValidationError("server", "Login failed").detail,
                     status: error.response?.status || 500
