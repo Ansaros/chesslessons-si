@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr
 from uuid import UUID
+from typing import Optional
 from datetime import datetime
-
+from pydantic import BaseModel, EmailStr
 
 class UserBase(BaseModel):
     email: EmailStr
-    chess_level_id: UUID
+    chess_level_id: Optional[UUID] = None
 
 
 class UserCreate(UserBase):
