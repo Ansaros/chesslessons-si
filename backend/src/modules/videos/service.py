@@ -99,7 +99,8 @@ class VideoService:
     
 
     async def filter_videos_by_attributes(self, access_level: Optional[int], attribute_value_ids: Optional[list[UUID]], db: AsyncSession) -> tuple[list[VideoShortRead], int]:
-        return await self.database.filter_by_access_and_attributes(db, access_level, attribute_value_ids)
+        videos = await self.database.filter_by_access_and_attributes(db, access_level, attribute_value_ids)
+        return [self.utils.attach_presigned_urls(video) for video in videos]
 
 
     async def view_video(self, video_id: UUID, user: UserTable, db: AsyncSession) -> VideoRead:
