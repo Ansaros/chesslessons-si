@@ -21,8 +21,8 @@ async def get_video_previews(
     db: AsyncSession = Depends(get_db),
     video_service: VideoService = Depends(get_video_service),
 ):
-    videos, total = await video_service.filter_videos_by_attributes(access_level, attribute_value_ids, db)
-    return ListResponse[VideoShortRead](data=videos, total=total)
+    videos = await video_service.filter_videos_by_attributes(access_level, attribute_value_ids, db)
+    return ListResponse[VideoShortRead](data=videos, total=len(videos))
 
 
 @router.get("/{video_id}", response_model=VideoRead, summary="Get video by ID")
