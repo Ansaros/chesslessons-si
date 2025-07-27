@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.logger import logger
 from src.modules.users.service import UserService
 from src.modules.auth.jwt_service import JWTService
-from src.modules.auth.schemas import RegisterRequest
 from src.modules.auth.password_manager import PasswordManager
+from src.modules.users.schemas import UserCreateInternal, UserCreate
 
 class AuthService:
     def __init__(
@@ -20,10 +20,17 @@ class AuthService:
         self.password_manager = password_manager
         self.revoked_tokens: dict[str, int] = {}
 
-    async def register_user(self, data: RegisterRequest, db: AsyncSession):
-        hashed_password = self.password_manager.hash_password(data.password)
-        await self.user_service.create_user(data.email, hashed_password, data.chess_level, db)
+    async def register_user(self, data: UserCreate, db: AsyncSession):
+        hashed = self.password_manager.hash_password(data.password)
+
+        user_data = UserCreateInternal(
+            **data.model_dump(exclude={"password"}),
+            hashed_password=hashed
+        )
+
+        await self.user_service.create_user(user_data, db)
         return await self.authenticate_user(data.email, data.password, db)
+
 
 
     async def authenticate_user(self, email: str, password: str, db: AsyncSession):

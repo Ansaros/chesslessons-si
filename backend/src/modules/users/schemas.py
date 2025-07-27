@@ -3,9 +3,9 @@ from uuid import UUID
 from datetime import datetime
 
 
-class UserBase(BaseModel):
+class wUserBase(BaseModel):
     email: EmailStr
-    chess_level: str
+    chess_level_id: UUID
 
 
 class UserCreate(UserBase):
@@ -20,7 +20,12 @@ class UserRead(UserBase):
 
 
 class UserUpdate(BaseModel):
-    chess_level: str
+    chess_level_id: UUID
+
 
 class PasswordUpdate(BaseModel):
     password: str
+
+
+class UserCreateInternal(UserBase):
+    hashed_password: str

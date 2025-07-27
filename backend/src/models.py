@@ -33,10 +33,10 @@ class UserTable(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    chess_level = Column(String, nullable=False)
+    chess_level_id = Column(UUID(as_uuid=True), ForeignKey("attribute_values.id", ondelete="SET NULL"))
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
+    chess_level = relationship("AttributeValueTable")
     purchases = relationship("PurchaseTable", back_populates="user")
     views = relationship("ViewLogTable", back_populates="user")
 

@@ -4,32 +4,22 @@ from fastapi import HTTPException
 
 from .crud import UserDatabase
 from src.models import UserTable
-from .schemas import UserUpdate
+from .schemas import UserUpdate, UserCreateInternal
 
 class UserService:
     def __init__(self, database: UserDatabase):
         self.database = database
 
-    async def create_user(
-        self,
-        email: str,
-        hashed_password: str,
-        chess_level: str,
-        db: AsyncSession
-    ) -> UserTable:
+    async def create_user(self, data: UserCreateInternal, db: AsyncSession) -> UserTable:
         try:
-            existing = await self.database.get_objects(db, email=email)
+            existing = await self.database.get_objects(db, email=data.email)
             if existing:
                 raise HTTPException(status_code=400, detail="User with this email already exists")
         except HTTPException as e:
             if e.status_code != 404:
                 raise
-        
-        return await self.database.create(db, obj_in={
-            "email": email,
-            "hashed_password": hashed_password,
-            "chess_level": chess_level
-        })
+            
+        return await self.database.create(db, obj_in=data)
 
 
     async def get_by_email(self, email: str, db: AsyncSession) -> UserTable:

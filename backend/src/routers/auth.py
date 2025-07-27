@@ -6,10 +6,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from src.core.database import get_db
 from src.schemas import StatusResponse
 from src.modules.auth.service import AuthService
+from src.modules.users.schemas import UserCreate
 from src.modules.auth.dependencies import get_auth_service, get_bearer_token
 from src.modules.auth.schemas import (
     TokenResponse,
-    RegisterRequest,
     ChangePasswordRequest,
     ChangePassword
 )
@@ -19,11 +19,11 @@ router = APIRouter()
 
 @router.post("/register", response_model=TokenResponse, summary="Register a new user")
 async def register_user_route(
-    data: RegisterRequest,
+    data: UserCreate,
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    access_token, refresh_token = await auth_service.register_user(data, db)
+    access_token, refresh_token = await auth_service.wregister_user(data, db)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
