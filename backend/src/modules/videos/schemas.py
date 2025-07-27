@@ -68,3 +68,5 @@ class VideoShortRead(BaseModel):
     preview_url: str
     access_level: int
     price: Decimal | None
+    
+    model_config = {"from_attributes": True}
