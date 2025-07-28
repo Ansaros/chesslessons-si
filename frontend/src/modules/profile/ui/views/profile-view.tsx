@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Header } from "@/components/layout/header"
 import {
     Avatar,
     AvatarFallback,
@@ -201,10 +202,13 @@ export const ProfileView = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-                <div className="flex items-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    <span>Загрузка профиля...</span>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+                <Header />
+                <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+                    <div className="flex items-center gap-2">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <span>Загрузка профиля...</span>
+                    </div>
                 </div>
             </div>
         );
@@ -212,10 +216,13 @@ export const ProfileView = () => {
 
     if (!profile) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-slate-600 mb-4">Не удалось загрузить профиль</p>
-                    <Button onClick={() => fetchProfile()}>Попробовать снова</Button>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+                <Header />
+                <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+                    <div className="text-center">
+                        <p className="text-slate-600 mb-4">Не удалось загрузить профиль</p>
+                        <Button onClick={() => fetchProfile()}>Попробовать снова</Button>
+                    </div>
                 </div>
             </div>
         );
@@ -223,39 +230,7 @@ export const ProfileView = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <Link href="/" className="flex items-center space-x-2">
-                            <Image
-                                src="/images/chess-logo.png"
-                                alt="Chester Chess Club"
-                                width={32}
-                                height={32}
-                                className="w-8 h-8 rounded-full object-cover"
-                            />
-                            <div>
-                                <h1 className="text-lg font-bold text-slate-800">Chester Chess Club</h1>
-                            </div>
-                        </Link>
-                        <nav className="hidden md:flex items-center space-x-6">
-                            <Link href="/videos" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Видеоуроки
-                            </Link>
-                            <Link href="/profile" className="text-amber-600 font-medium">
-                                Профиль
-                            </Link>
-                            <LogoutButton
-                                variant="ghost"
-                                size="sm"
-                                className="text-slate-600 hover:text-slate-800"
-                                showIcon={true}
-                                showText={true}
-                            />
-                        </nav>
-                    </div>
-                </div>
-            </header>
+            <Header />
 
             <div className="container mx-auto px-4 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

@@ -22,22 +22,29 @@ export interface ChessLevelType {
   values: ChessLevel[];
 }
 
+import axios from 'axios';
+
 const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL ?? "";
+const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : "";
 
 const getHeaders = (token?: string) => {
-  const h: HeadersInit = {
+  const h: Record<string, string> = {
     "Content-Type": "application/json",
   };
   if (token) h["Authorization"] = `Bearer ${token}`;
   return h;
 };
 
-const handleResp = async <T>(r: Response): Promise<T> => {
-  if (!r.ok) {
-    const msg = await r.text();
-    throw new Error(JSON.parse(msg).detail ?? msg);
+const handleAxiosResp = async <T>(promise: Promise<any>): Promise<T> => {
+  try {
+    const response = await promise;
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.detail ?? JSON.stringify(error.response.data));
+    }
+    throw error;
   }
-  return r.json();
 };
 
 export class ProfileService {
@@ -52,38 +59,38 @@ export class ProfileService {
   }
 
   async getProfile(): Promise<Profile> {
-    const res = await fetch(`${API_URL}/profile`, {
-      headers: getHeaders(this.token),
-    });
-    return handleResp<Profile>(res);
+    return handleAxiosResp<Profile>(
+      axios.get(`${API_BASE_URL}/api/profile`, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async updateProfile(data: ProfileUpdate): Promise<Profile> {
-    const res = await fetch(`${API_URL}/profile`, {
-      method: "PUT",
-      headers: getHeaders(this.token),
-      body: JSON.stringify(data),
-    });
-    return handleResp<Profile>(res);
+    return handleAxiosResp<Profile>(
+      axios.put(`${API_BASE_URL}/api/profile`, data, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async updatePassword(data: PasswordUpdate): Promise<Profile> {
-    const res = await fetch(`${API_URL}/profile/password`, {
-      method: "PUT",
-      headers: getHeaders(this.token),
-      body: JSON.stringify(data),
-    });
-    return handleResp<Profile>(res);
+    return handleAxiosResp<Profile>(
+      axios.put(`${API_BASE_URL}/api/profile/password`, data, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async getChessLevels(): Promise<ChessLevel[]> {
-    const res = await fetch(`${API_URL}/admin/attribute/types`, {
-      headers: getHeaders(this.token),
-    });
-    const data = await handleResp<{ data: ChessLevelType[] }>(res);
+    const response = await handleAxiosResp<{ data: ChessLevelType[] }>(
+      axios.get(`${API_BASE_URL}/api/profile/chess-levels`, {
+        headers: getHeaders(this.token),
+      })
+    );
     
     // Find the chess level attribute type and return its values
-    const chessLevelType = data.data.find(type => 
+    const chessLevelType = response.data.find(type => 
       type.name.toLowerCase().includes('chess') || 
       type.name.toLowerCase().includes('level') ||
       type.name.toLowerCase().includes('уровень')
@@ -93,4 +100,4 @@ export class ProfileService {
   }
 }
 
-export const profileService = new ProfileService(); 
+export const profileService = new ProfileService();

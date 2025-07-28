@@ -28,22 +28,29 @@ export interface AttributeTypesResponse {
   total: number;
 }
 
+import axios from 'axios';
+
 const API_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL ?? "";
 
 const getHeaders = (token?: string, isFormData = false) => {
-  const h: HeadersInit = {};
+  const h: Record<string, string> = {};
   if (!isFormData) h["Content-Type"] = "application/json";
   if (token) h["Authorization"] = `Bearer ${token}`;
   return h;
 };
 
-const handleResp = async <T>(r: Response): Promise<T> => {
-  if (!r.ok) {
-    const msg = await r.text();
-    throw new Error(JSON.parse(msg).detail ?? msg);
+const handleAxiosResp = async <T>(promise: Promise<any>): Promise<T> => {
+  try {
+    const response = await promise;
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.detail ?? JSON.stringify(error.response.data));
+    }
+    throw error;
   }
-  return r.json();
 };
+
 
 export class AdminService {
   private token?: string;
@@ -58,78 +65,76 @@ export class AdminService {
     const q = new URLSearchParams();
     if (params?.skip !== undefined) q.set("skip", String(params.skip));
     if (params?.limit !== undefined) q.set("limit", String(params.limit));
-    const res = await fetch(`${API_URL}/admin/videos?${q}`, {
-      headers: getHeaders(this.token),
-    });
-    return handleResp<AdminVideosResponse>(res);
+    return handleAxiosResp<AdminVideosResponse>(
+      axios.get(`${API_URL}/admin/videos?${q}`, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async uploadVideo(form: FormData) {
-    const res = await fetch(`${API_URL}/admin/videos/`, {
-      method: "POST",
-      headers: getHeaders(this.token, true),
-      body: form,
-    });
-    return handleResp<AdminVideo>(res);
+    return handleAxiosResp<AdminVideo>(
+      axios.post(`${API_URL}/admin/videos/`, form, {
+        headers: getHeaders(this.token, true),
+      })
+    );
   }
 
   async updateVideo(id: string, form: FormData) {
-    const res = await fetch(`${API_URL}/admin/videos/${id}`, {
-      method: "PUT",
-      headers: getHeaders(this.token, true),
-      body: form,
-    });
-    return handleResp<AdminVideo>(res);
+    return handleAxiosResp<AdminVideo>(
+      axios.put(`${API_URL}/admin/videos/${id}`, form, {
+        headers: getHeaders(this.token, true),
+      })
+    );
   }
 
   async deleteVideo(id: string) {
-    const res = await fetch(`${API_URL}/admin/videos/${id}`, {
-      method: "DELETE",
-      headers: getHeaders(this.token),
-    });
-    return handleResp<AdminVideo>(res);
+    return handleAxiosResp<AdminVideo>(
+      axios.delete(`${API_URL}/admin/videos/${id}`, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   /* -------- Attributes -------- */
   async fetchAttributeTypes() {
-    const res = await fetch(`${API_URL}/admin/attribute/types`, {
-      headers: getHeaders(this.token),
-    });
-    return handleResp<AttributeTypesResponse>(res);
+    return handleAxiosResp<AttributeTypesResponse>(
+      axios.get(`${API_URL}/admin/attribute/types`, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async createAttributeType(name: string) {
-    const res = await fetch(`${API_URL}/admin/attribute/types`, {
-      method: "POST",
-      headers: getHeaders(this.token),
-      body: JSON.stringify({ name }),
-    });
-    return handleResp<AttributeType>(res);
+    return handleAxiosResp<AttributeType>(
+      axios.post(`${API_URL}/admin/attribute/types`, { name }, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async createAttributeValue(value: string, typeId: string) {
-    const res = await fetch(`${API_URL}/admin/attribute/values`, {
-      method: "POST",
-      headers: getHeaders(this.token),
-      body: JSON.stringify({ value, type_id: typeId }),
-    });
-    return handleResp<{ id: string; value: string }>(res);
+    return handleAxiosResp<{ id: string; value: string }>(
+      axios.post(`${API_URL}/admin/attribute/values`, { value, type_id: typeId }, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async deleteAttributeType(id: string) {
-    const res = await fetch(`${API_URL}/admin/attribute/types/${id}`, {
-      method: "DELETE",
-      headers: getHeaders(this.token),
-    });
-    return handleResp<{ status: boolean; message: string }>(res);
+    return handleAxiosResp<{ status: boolean; message: string }>(
+      axios.delete(`${API_URL}/admin/attribute/types/${id}`, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   async deleteAttributeValue(id: string) {
-    const res = await fetch(`${API_URL}/admin/attribute/values/${id}`, {
-      method: "DELETE",
-      headers: getHeaders(this.token),
-    });
-    return handleResp<{ status: boolean; message: string }>(res);
+    return handleAxiosResp<{ status: boolean; message: string }>(
+      axios.delete(`${API_URL}/admin/attribute/values/${id}`, {
+        headers: getHeaders(this.token),
+      })
+    );
   }
 
   static buildVideoForm(opts: {

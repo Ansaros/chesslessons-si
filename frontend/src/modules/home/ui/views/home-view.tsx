@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 
 import { useAuth } from "@/hooks/use-auth";
+import { Header } from "@/components/layout/header";
 
 import { Button } from "@/components/ui/button"
 import {
@@ -94,46 +95,7 @@ export const HomeView = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <Image
-                                src="/images/chess-logo.png"
-                                alt="Chester Chess Club"
-                                width={40}
-                                height={40}
-                                className="rounded-full object-cover"
-                            />
-                            <div>
-                                <h1 className="text-xl font-bold text-slate-800">Chester Chess Club</h1>
-                                <p className="text-xs text-slate-600">Школа Шахмат</p>
-                            </div>
-                        </div>
-
-                        <nav className="hidden md:flex items-center space-x-6">
-                            <Link href="/videos" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Видеоуроки
-                            </Link>
-                            {!isAuthenticated && (
-                                <Link href="/demo" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                    Демо
-                                </Link>
-                            )}
-                            {isAuthenticated && (
-                                <Link href="/profile" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                    Профиль
-                                </Link>
-                            )}
-                            {!isAuthenticated && (
-                                <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                    Войти
-                                </Link>
-                            )}
-                        </nav>
-                    </div>
-                </div>
-            </header>
+            <Header />
 
             <section className="py-20 px-4">
                 <div className="container mx-auto text-center">

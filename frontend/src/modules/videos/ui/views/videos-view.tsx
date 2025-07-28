@@ -7,6 +7,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Header } from "@/components/layout/header"
 import {
     Select,
     SelectContent,
@@ -152,35 +153,7 @@ export const VideosView = () => {
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-                <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-                    <div className="container mx-auto px-4 py-4">
-                        <div className="flex items-center justify-between">
-                            <Link href="/" className="flex items-center space-x-2">
-                                <Image
-                                    src="/images/chess-logo.png"
-                                    alt="Chester Chess Club"
-                                    width={32}
-                                    height={32}
-                                    className="w-8 h-8 rounded-full object-cover"
-                                />
-                                <div>
-                                    <h1 className="text-lg font-bold text-slate-800">Chester Chess Club</h1>
-                                </div>
-                            </Link>
-                            <nav className="hidden md:flex items-center space-x-6">
-                                <Link href="/videos" className="text-amber-600 font-medium">
-                                    Видеоуроки
-                                </Link>
-                                <Link href="/profile" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                    Профиль
-                                </Link>
-                                <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                    Войти
-                                </Link>
-                            </nav>
-                        </div>
-                    </div>
-                </header>
+                <Header />
                 
                 <div className="container mx-auto px-4 py-8">
                     <div className="flex items-center justify-center h-64">
@@ -198,35 +171,7 @@ export const VideosView = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-            <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <Link href="/" className="flex items-center space-x-2">
-                            <Image
-                                src="/images/chess-logo.png"
-                                alt="Chester Chess Club"
-                                width={32}
-                                height={32}
-                                className="w-8 h-8 rounded-full object-cover"
-                            />
-                            <div>
-                                <h1 className="text-lg font-bold text-slate-800">Chester Chess Club</h1>
-                            </div>
-                        </Link>
-                        <nav className="hidden md:flex items-center space-x-6">
-                            <Link href="/videos" className="text-amber-600 font-medium">
-                                Видеоуроки
-                            </Link>
-                            <Link href="/profile" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Профиль
-                            </Link>
-                            <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Войти
-                            </Link>
-                        </nav>
-                    </div>
-                </div>
-            </header>
+            <Header />
 
             <div className="container mx-auto px-4 py-8">
                 <div className="mb-8">

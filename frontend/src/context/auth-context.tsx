@@ -61,6 +61,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } finally {
             setIsAuthenticated(false);
             setUser(null);
+            // Clear the user_email from storage
+            localStorage.removeItem("user_email");
+            sessionStorage.removeItem("user_email");
             console.log('Auth context - User logged out');
         }
     };

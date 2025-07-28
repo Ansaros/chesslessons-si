@@ -62,7 +62,11 @@ export const LoginView = () => {
             console.log("Login successful:", response);
             console.log("Tokens stored, remember me:", formData.rememberMe);
 
-            if (formData.email === "admin@chessmaster.com" && formData.password === "admin123") {
+            // Store the user's email for admin check in the Header component
+            const storage = formData.rememberMe ? localStorage : sessionStorage;
+            storage.setItem("user_email", formData.email);
+
+            if (formData.email === "admin@chess.com" && formData.password === "adminchess03029") {
                 window.location.href = "/admin";
             } else {
                 window.location.href = "/videos";
