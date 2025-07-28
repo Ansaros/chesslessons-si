@@ -13,7 +13,7 @@ class UserDatabase(CRUDBase[UserTable, UserCreate, UserUpdate]):
             return await super().create(db, obj_in=obj_in)
         except IntegrityError as e:
             if 'chess_level_id' in str(e.orig):
-                raise HTTPException(status_code=400, detail="chess_level_id: atribute with this id does not exist")
+                raise HTTPException(status_code=400, detail="chess_level_id: atribute value with this id does not exist")
             raise
 
     async def update(self, db: AsyncSession, db_obj: UserTable, obj_in: UserUpdate) -> UserTable:
@@ -21,5 +21,5 @@ class UserDatabase(CRUDBase[UserTable, UserCreate, UserUpdate]):
             return await super().update(db, db_obj=db_obj, obj_in=obj_in)
         except IntegrityError as e:
             if 'chess_level_id' in str(e.orig):
-                raise HTTPException(status_code=400, detail="chess_level_id: attribute with this id does not exist")
+                raise HTTPException(status_code=400, detail="chess_level_id: attribute value with this id does not exist")
             raise
