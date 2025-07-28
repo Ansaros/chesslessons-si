@@ -34,4 +34,4 @@ async def update_password(
     current_user: UserTable = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    return await profile_service.update_user_password(current_user.id, password, db)
+    return await profile_service.update_user_password(current_user.id, password.password, db)
