@@ -2,21 +2,20 @@
 
 import type React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
-
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
+import { Play, Pause, Volume2, VolumeX, Maximize, Lock, RefreshCw } from "lucide-react"
 
-import {
-    Play,
-    Pause,
-    Volume2,
-    VolumeX,
-    Maximize,
-    Lock,
-    RefreshCw
-} from "lucide-react"
-
-import { StreamResponse } from "../../types";
+// Updated type to include the preview URL from the API response
+interface StreamResponse {
+    streamUrl: string;
+    expiresAt: number;
+    previewUrl: string;
+    videoInfo: {
+        title: string;
+        duration?: number;
+    };
+}
 
 interface VideoPlayerProps {
     videoId: string
@@ -33,6 +32,7 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
     const [volume, setVolume] = useState(100)
     const [isMuted, setIsMuted] = useState(false)
     const [videoUrl, setVideoUrl] = useState<string | null>(null)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null) // State for the preview image
     const [urlExpiresAt, setUrlExpiresAt] = useState<number | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -42,35 +42,29 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
     const fetchSignedUrl = useCallback(async () => {
         setIsLoading(true)
         setError(null)
-
         try {
-            // Получаем токен из localStorage (в реальности может быть в cookies)
             const token = localStorage.getItem("userToken") || "demo-token"
-
             const response = await fetch(`/api/video/${videoId}/stream`, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
+                    "Authorization": token || "",
                 },
             })
 
             if (!response.ok) {
                 const errorData = await response.json()
-
                 if (response.status === 403 && errorData.needsPurchase) {
-                    // Пользователь не купил видео
                     throw new Error("Требуется покупка видео")
                 }
-
                 throw new Error(errorData.error || "Ошибка загрузки видео")
             }
 
             const data: StreamResponse = await response.json()
 
             setVideoUrl(data.streamUrl)
+            setPreviewUrl(data.previewUrl) 
             setUrlExpiresAt(data.expiresAt)
 
-            console.log(`Получен подписанный URL, действует до: ${new Date(data.expiresAt).toLocaleString()}`)
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Не удалось загрузить видео"
             setError(errorMessage)
@@ -78,42 +72,38 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
         } finally {
             setIsLoading(false)
         }
-    }, [videoId, setIsLoading, setError, setVideoUrl, setUrlExpiresAt])
+    }, [videoId])
 
     useEffect(() => {
         if (isPurchased) {
             fetchSignedUrl()
         }
-    }, [fetchSignedUrl, videoId, isPurchased])
+    }, [isPurchased, fetchSignedUrl])
 
     useEffect(() => {
-        if (!urlExpiresAt || !isPurchased) return
+        if (!urlExpiresAt || !isPurchased || urlExpiresAt === 0) return // Don't check public URLs
 
         const checkExpiration = () => {
             const timeUntilExpiry = urlExpiresAt - Date.now()
-
             if (timeUntilExpiry < 5 * 60 * 1000 && timeUntilExpiry > 0) {
                 console.log("URL скоро истечет, обновляем...")
                 fetchSignedUrl()
             }
         }
 
-        const interval = setInterval(checkExpiration, 60000) 
+        const interval = setInterval(checkExpiration, 60000)
         return () => clearInterval(interval)
     }, [fetchSignedUrl, urlExpiresAt, isPurchased])
-
 
     const togglePlay = () => {
         if (!isPurchased) {
             onPurchaseClick()
             return
         }
-
         if (!videoUrl) {
             fetchSignedUrl()
             return
         }
-
         if (videoRef.current) {
             if (isPlaying) {
                 videoRef.current.pause()
@@ -147,13 +137,13 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
         const newVolume = value[0]
         setVolume(newVolume)
         setIsMuted(newVolume === 0)
-
         if (videoRef.current) {
             videoRef.current.volume = newVolume / 100
         }
     }
 
     const formatTime = (time: number) => {
+        if (isNaN(time)) return "0:00";
         const minutes = Math.floor(time / 60)
         const seconds = Math.floor(time % 60)
         return `${minutes}:${seconds.toString().padStart(2, "0")}`
@@ -234,7 +224,9 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
             {videoUrl && (
                 <video
                     ref={videoRef}
+                    key={videoUrl} // Key helps React re-mount the component when the URL changes
                     className="w-full h-full object-cover"
+                    poster={previewUrl || undefined} // Use the preview URL as the poster
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onPlay={() => setIsPlaying(true)}
@@ -278,7 +270,6 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
                             <Button size="icon" variant="ghost" onClick={togglePlay} className="hover:bg-white/20">
                                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
                             </Button>
-
                             <div className="flex items-center space-x-2">
                                 <Button size="icon" variant="ghost" onClick={() => setIsMuted(!isMuted)} className="hover:bg-white/20">
                                     {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -293,19 +284,16 @@ export const VideoPlayer = ({ videoId, isPurchased, onPurchaseClick, title, pric
                                     />
                                 </div>
                             </div>
-
                             <span className="text-sm bg-black/40 px-2 py-1 rounded">
                                 {formatTime(currentTime)} / {formatTime(duration)}
                             </span>
                         </div>
-
                         <div className="flex items-center space-x-2">
-                            {urlExpiresAt && (
+                            {urlExpiresAt && urlExpiresAt !== 0 && (
                                 <span className="text-xs bg-black/40 px-2 py-1 rounded">
                                     URL до: {new Date(urlExpiresAt).toLocaleTimeString()}
                                 </span>
                             )}
-
                             <Button size="icon" variant="ghost" className="hover:bg-white/20">
                                 <Maximize className="w-5 h-5" />
                             </Button>

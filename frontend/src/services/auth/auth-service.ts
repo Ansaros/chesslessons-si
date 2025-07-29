@@ -55,34 +55,31 @@ const createValidationError = (field: string, message: string): ValidationError 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL;
 console.log('API_BASE_URL from env:', API_BASE_URL);
 
-const authApi = axios.create({
+export const authApi = axios.create({
     baseURL: `http://159.65.223.248:8000/auth`,
     timeout: 10000,
 });
 
-authApi.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        console.log('Axios error details:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status,
-            config: error.config
-        });
-        return Promise.reject(error);
+authApi.interceptors.request.use((config) => {
+    const token = TokenStorage.getAccessToken();
+    console.log('Interceptor: Token retrieved:', token);
+    if (token) {
+        (config.headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    } else {
+        console.log('Interceptor: No token found');
+        delete (config.headers as Record<string, string>)["Authorization"];
     }
-);
+    return config;
+});
 
 class TokenStorage {
     static setTokens(accessToken: string, refreshToken?: string, rememberMe: boolean = false) {
         const storage = rememberMe ? localStorage : sessionStorage;
-
         storage.setItem("access_token", accessToken);
         if (refreshToken) {
             storage.setItem("refresh_token", refreshToken);
         }
         storage.setItem("remember_me", rememberMe.toString());
-
         const otherStorage = rememberMe ? sessionStorage : localStorage;
         otherStorage.removeItem("access_token");
         otherStorage.removeItem("refresh_token");
@@ -257,40 +254,25 @@ class AuthService {
     async refreshToken(): Promise<TokenResponse> {
         try {
             const refreshToken = TokenStorage.getRefreshToken();
-
-            if (!refreshToken) {
-                throw {
-                    detail: createValidationError("authorization", "Missing refresh token").detail,
-                    status: 401
-                };
-            }
-
-            const response: AxiosResponse<TokenResponse> = await authApi.post('/token/refresh', {}, {
-                headers: {
-                    'Authorization': `Bearer ${refreshToken}`,
-                }
+            if (!refreshToken) throw new Error("No refresh token");
+            console.log('Attempting to refresh token with:', refreshToken.substring(0, 10) + "...");
+            const response = await authApi.post('/token/refresh', {}, {
+                headers: { Authorization: `Bearer ${refreshToken}` }
             });
-
+            console.log('Refresh successful:', response.data);
             const rememberMe = TokenStorage.isRemembered();
             TokenStorage.setTokens(
                 response.data.access_token,
-                response.data.refresh_token || refreshToken,
+                response.data.refresh_token,
                 rememberMe
             );
-
             return response.data;
         } catch (error) {
-            if (axios.isAxiosError(error)) {
-                TokenStorage.clearTokens();
-                throw {
-                    detail: error.response?.data?.detail || createValidationError("server", "Token refresh failed").detail,
-                    status: error.response?.status || 500
-                };
-            }
-            throw createValidationError("server", "Internal server error");
+            console.error('Refresh failed:', error);
+            TokenStorage.clearTokens();
+            throw new Error("REFRESH_FAILED");
         }
     }
-
     async passwordRecovery(email: string): Promise<StatusResponse> {
         try {
             const validatedData = passwordRecoverySchema.parse({ email });

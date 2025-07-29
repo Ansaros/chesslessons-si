@@ -1,23 +1,13 @@
-"use client"
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Star, Eye, Clock, User, ArrowLeft } from "lucide-react";
+import { VideoPlayer } from "@/modules/videos/ui/components/video-player";
+import { useAuth } from "@/context/auth-context";
+import { VideoService } from "@/services/videos/videos-service";
 
-import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
-import Image from "next/image"
-
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-
-import {
-    Star,
-    Eye,
-    Clock,
-    User,
-    ArrowLeft
-} from "lucide-react"
-
-import { VideoPlayer } from "../components/video-player"
-
-// API Types
 interface VideoAttribute {
     type: string;
     value: string;
@@ -33,24 +23,23 @@ interface VideoDetails {
     hls_url: string;
     created_at: string;
     attributes: VideoAttribute[];
-    hls_segments: Record<string, unknown>;
+    hls_segments: Record<string, string>;
     views_count: number;
 }
 
-// Helper function to get attribute value
 const getAttributeValue = (attributes: VideoAttribute[], type: string): string => {
     return attributes.find(attr => attr.type === type)?.value || "";
-}
+};
 
 const getCategoryLabel = (value: string): string => {
     const categories: { [key: string]: string } = {
         "debuts": "Дебюты",
-        "strategy": "Стратегии", 
+        "strategy": "Стратегии",
         "tactics": "Тактика",
         "endgame": "Эндшпиль"
     };
     return categories[value] || value;
-}
+};
 
 export const VideosIdView = ({ params }: { params: { id: string } }) => {
     const [video, setVideo] = useState<VideoDetails | null>(null);
@@ -58,45 +47,29 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
     const [error, setError] = useState<string | null>(null);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [isPurchased, setIsPurchased] = useState(false);
-
+    const { logout } = useAuth();
     const videoId = params.id;
+    
+    const videoService = useMemo(() => new VideoService(), []);
 
-    // Fetch video details from API
     const fetchVideoDetails = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BACKEND_URL}/videos/${videoId}`);
-            
-            if (response.status === 404) {
-                setError("Видео не найдено");
-                return;
-            }
-            
-            if (response.status === 403) {
-                setVideo(prev => prev ? { ...prev, access_level: 1 as const } : null);
-                setError("Нет доступа к видео");
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const videoData: VideoDetails = await response.json();
+            const videoData = await videoService.getVideo(videoId);
             setVideo(videoData);
-            
-            // Check if user has purchased this video (you'll need to implement this logic)
-            // For now, we'll assume free videos are "purchased"
             setIsPurchased(videoData.access_level === 0);
-            
             setError(null);
-        } catch (err) {
-            console.error("Error fetching video details:", err);
-            setError("Ошибка при загрузке видео");
+        } catch (err: unknown) {
+            if (err instanceof Error && (err.message === "SESSION_EXPIRED" || err.message === "REFRESH_FAILED")) {
+                await logout();
+                window.location.href = `/login?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+                return;
+            }
+            setError("Произошла ошибка при загрузке видео.");
         } finally {
             setLoading(false);
         }
-    }, [videoId]);
+    }, [videoId, logout, videoService]);
 
     useEffect(() => {
         if (videoId) {
@@ -104,7 +77,6 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
         }
     }, [videoId, fetchVideoDetails]);
 
-    // Loading state
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -116,9 +88,11 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                                     src="/images/chess-logo.png"
                                     alt="Chester Chess Club"
                                     className="w-8 h-8 rounded-full object-cover"
+                                    width={32}
+                                    height={32}
                                 />
                                 <div>
-                                    <h1 className="text-lg font-bold text-slate-800">Chester Chess Club</h1>
+                                    <h1 className="text-lg font-bold text-slate-800">Chesster Chess Club</h1>
                                 </div>
                             </Link>
                             <nav className="flex items-center space-x-6">
@@ -145,7 +119,6 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
         );
     }
 
-    // Error state or video not found
     if (error || !video) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -161,12 +134,10 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
         );
     }
 
-    // Extract video attributes
     const category = getAttributeValue(video.attributes, "category");
     const instructor = getAttributeValue(video.attributes, "instructor");
     const duration = getAttributeValue(video.attributes, "duration");
     const rating = getAttributeValue(video.attributes, "rating");
-    const skillLevel = getAttributeValue(video.attributes, "skill_level");
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -178,9 +149,11 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                                 src="/images/chess-logo.png"
                                 alt="Chester Chess Club"
                                 className="w-8 h-8 rounded-full object-cover"
+                                width={32}
+                                height={32}
                             />
                             <div>
-                                <h1 className="text-lg font-bold text-slate-800">Chester Chess Club</h1>
+                                <h1 className="text-lg font-bold text-slate-800">Chesster Chess Club</h1>
                             </div>
                         </Link>
                         <nav className="flex items-center space-x-6">
@@ -200,7 +173,6 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
 
             <div className="container mx-auto px-4 py-8">
                 <div className="max-w-5xl mx-auto">
-                    {/* Video Player */}
                     <div className="mb-6">
                         <VideoPlayer
                             videoId={video.id}
@@ -273,7 +245,7 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                             <Button
                                 className="flex-1 bg-amber-600 hover:bg-amber-700"
                                 onClick={() => {
-                                    window.location.href = `/payment?video=${video.id}`
+                                    window.location.href = `/payment?video=${video.id}`;
                                 }}
                             >
                                 Купить
@@ -286,5 +258,5 @@ export const VideosIdView = ({ params }: { params: { id: string } }) => {
                 </div>
             )}
         </div>
-    )
+    );
 }

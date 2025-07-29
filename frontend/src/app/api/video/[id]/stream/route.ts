@@ -1,23 +1,36 @@
 import { type NextRequest, NextResponse } from "next/server";
-
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3"
-
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
-
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { verifyJWT } from "@/lib/jwt";
 
+// Interface for data from your external API, updated to match your documentation
+interface ApiVideoData {
+    id: string;
+    title: string;
+    description?: string;
+    access_level: number; // API sends a number (0, 1, or 2)
+    price: string;        // ❗️ API sends price as a string
+    preview_url?: string;
+    hls_url: string;
+    duration?: number;    // Keeping as optional in case it's added later
+}
+
+// Internal data structure
 interface VideoData {
     id: string;
     title: string;
-    price: number;
-    access: 0 | 1; // 0 = public, 1 = private - тут сдела так
+    price: number;        // We will use price as a number internally
+    access: number;
     spacesPath: string;
     duration?: number;
+    previewUrl: string;
 }
 
+// The shape of the JSON response sent to the client
 interface StreamResponse {
     streamUrl: string;
     expiresAt: number;
+    previewUrl: string;
     videoInfo: {
         title: string;
         duration?: number;
@@ -33,32 +46,42 @@ const s3Client = new S3Client({
     },
 });
 
-const SIGNED_URL_EXPIRES_IN = 3600
-const BUCKET_NAME = process.env.DO_SPACES_BUCKET!
+const SIGNED_URL_EXPIRES_IN = 3600;
+const BUCKET_NAME = process.env.DO_SPACES_BUCKET!;
 
-
+// This logic remains the same
 const extractTokenFromHeader = (authHeader: string | null): string | null => {
-    if (!authHeader?.startsWith("Bearer ")) return null
+    if (!authHeader?.startsWith("Bearer ")) return null;
     return authHeader.split(" ")[1] || null;
-}
+};
 
-const checkVideoAccess = (video: VideoData, videoId: string): boolean => {
-    const userPurchases = new Set(["1", "3", "5"])
-    return video.access === 0 || userPurchases.has(videoId) // || тут надо в куери чекать есть ли покупка. потом сделаете ||
-}
+// This logic correctly handles any non-zero access level as private
+const checkVideoAccess = async (video: VideoData, videoId: string, token: string): Promise<boolean> => {
+    const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BACKEND_URL}/videos/${videoId}/access`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+            },
+        }
+    );
+    return response.status === 200;
+};
 
+
+// This logic remains the same
 const generateSignedUrl = async (spacesPath: string): Promise<string> => {
     const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: spacesPath,
         ResponseContentDisposition: "inline",
         ResponseContentType: "video/mp4",
-    })
-
+    });
     return getSignedUrl(s3Client, command, {
         expiresIn: SIGNED_URL_EXPIRES_IN,
-    })
-}
+    });
+};
 
 
 export async function GET(
@@ -67,15 +90,11 @@ export async function GET(
 ): Promise<NextResponse> {
     try {
         const videoId = params.id;
-        const authHeader = request.headers.get("authorization")
-
-        const token = extractTokenFromHeader(authHeader)
+        const authHeader = request.headers.get("authorization");
+        const token = extractTokenFromHeader(authHeader);
 
         if (!token) {
-            return NextResponse.json(
-                { error: "Требуется авторизация" },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
         }
 
         const user = await verifyJWT(token);
@@ -87,55 +106,51 @@ export async function GET(
             headers: {
                 "Authorization": `Bearer ${token}`
             }
-        })
+        });
 
         if (!response.ok) {
             if (response.status === 404) {
-                return NextResponse.json(
-                    { error: "Видео не найдено" },
-                    { status: 404 },
-                )
+                return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });
             }
             if (response.status === 403) {
                 const data = await response.json();
-                return NextResponse.json(
-                    {
-                        error: "Нет доступа к видео",
-                        needsPurchase: true,
-                        price: data.price,
-                    },
-                    { status: 403 }
-                )
-            }
-            throw new Error("Failed to fetch video")
-        }
-
-        const videoData = await response.json();
-        
-        const video: VideoData = {
-            id: videoData.id,
-            title: videoData.title,
-            price: videoData.price || 0,
-            access: videoData.access_level as 0 | 1,
-            spacesPath: videoData.hls_url,
-            duration: videoData.duration
-        };
-
-        if (!checkVideoAccess(video, videoId)) {
-            return NextResponse.json(
-                {
+                return NextResponse.json({
                     error: "Нет доступа к видео",
                     needsPurchase: true,
-                    price: video.price,
-                },
-                { status: 403 }
-            );
+                    price: data.price ? parseFloat(data.price) : 0,
+                }, { status: 403 });
+            }
+            throw new Error("Failed to fetch video");
         }
 
+        const apiVideoData: ApiVideoData = await response.json();
+        const DEFAULT_PREVIEW_URL = "/images/default-preview.jpg";
+
+        const video: VideoData = {
+            id: apiVideoData.id,
+            title: apiVideoData.title,
+            price: parseFloat(apiVideoData.price) || 0,
+            access: apiVideoData.access_level,
+            spacesPath: apiVideoData.hls_url,
+            duration: apiVideoData.duration,
+            previewUrl: apiVideoData.preview_url || DEFAULT_PREVIEW_URL,
+        };
+
+        // Check access for non-public videos
+        if (video.access !== 0 && !(await checkVideoAccess(video, videoId, token))) {
+            return NextResponse.json({
+                error: "Нет доступа к видео",
+                needsPurchase: true,
+                price: video.price,
+            }, { status: 403 });
+        }
+
+        // Public video: direct CDN URL
         if (video.access === 0) {
             const streamResponse: StreamResponse = {
                 streamUrl: `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_REGION}.cdn.digitaloceanspaces.com/${video.spacesPath}`,
                 expiresAt: 0,
+                previewUrl: video.previewUrl,
                 videoInfo: {
                     title: video.title,
                     duration: video.duration,
@@ -144,11 +159,12 @@ export async function GET(
             return NextResponse.json(streamResponse);
         }
 
+        // Private video: signed URL
         const signedUrl = await generateSignedUrl(video.spacesPath);
-
         const streamResponse: StreamResponse = {
             streamUrl: signedUrl,
             expiresAt: Date.now() + (SIGNED_URL_EXPIRES_IN * 1000),
+            previewUrl: video.previewUrl,
             videoInfo: {
                 title: video.title,
                 duration: video.duration,
@@ -158,10 +174,7 @@ export async function GET(
         return NextResponse.json(streamResponse);
 
     } catch (error) {
-        console.error("Stream API Error:", error)
-        return NextResponse.json(
-            { error: "Внутренняя ошибка сервера" },
-            { status: 500 }
-        )
+        console.error("Stream API Error:", error);
+        return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
     }
 }

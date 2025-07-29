@@ -22,8 +22,9 @@ export interface VideoDetails {
     hls_url: string;
     created_at: string;
     attributes: VideoAttribute[];
-    hls_segments: Record<string, unknown>;
+    hls_segments: Record<string, string>;
     views_count: number;
+    duration: number;
 }
 
 export interface VideosResponse {
@@ -90,7 +91,7 @@ export class VideoAPI {
         attribute_value_ids?: string[];
     }): Promise<VideosResponse> {
         const urlParams = new URLSearchParams();
-        
+
         if (params?.access_level && params.access_level !== 'all') {
             urlParams.append('access_level', params.access_level);
         }
@@ -100,7 +101,7 @@ export class VideoAPI {
         }
 
         const url = `${this.baseUrl}/videos${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
-        
+
         const response = await fetch(url, {
             headers: this.getHeaders(),
         });
@@ -195,22 +196,22 @@ export const useVideoAPI = (token?: string) => {
 };
 
 export const fetchVideos = async () => {
-  const res = await fetch("/admin/videos?limit=100");
-  if (!res.ok) throw new Error("Failed to fetch videos");
-  return res.json();
+    const res = await fetch("/admin/videos?limit=100");
+    if (!res.ok) throw new Error("Failed to fetch videos");
+    return res.json();
 };
 
 export const fetchAttributeTypes = async () => {
-  const res = await fetch("/admin/attribute/types");
-  if (!res.ok) throw new Error("Failed to fetch attribute types");
-  return res.json();
+    const res = await fetch("/admin/attribute/types");
+    if (!res.ok) throw new Error("Failed to fetch attribute types");
+    return res.json();
 };
 
 export const uploadVideo = async (formData: FormData) => {
-  const res = await fetch("/admin/videos", {
-    method: "POST",
-    body: formData,
-  });
-  if (!res.ok) throw new Error("Video upload failed");
-  return res.json();
+    const res = await fetch("/admin/videos", {
+        method: "POST",
+        body: formData,
+    });
+    if (!res.ok) throw new Error("Video upload failed");
+    return res.json();
 };
