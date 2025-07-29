@@ -15,7 +15,7 @@ async function forwardToBackend(endpoint: string, options: RequestInit) {
       });
     }
 
-    let axiosConfig = {
+    const axiosConfig = {
       method: options.method as string,
       url: `${NEXT_PUBLIC_API_BACKEND_URL}/admin/${endpoint}`,
       headers: headers,

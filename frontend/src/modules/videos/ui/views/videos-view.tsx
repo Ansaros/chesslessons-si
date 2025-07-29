@@ -95,18 +95,15 @@ export const VideosView = () => {
     const [selectedAccess, setSelectedAccess] = useState("all");
     const [selectedSkillLevel, setSelectedSkillLevel] = useState("all");
 
-    // Fetch videos from API
     const fetchVideos = useCallback(async () => {
         try {
             setLoading(true);
             const params = new URLSearchParams();
-            
-            // Add access level filter if selected
+
             if (selectedAccess !== "all") {
                 params.append("access_level", selectedAccess);
             }
 
-            // Add attribute filters if needed
             const attributeFilters: string[] = [];
             if (selectedCategory !== "all") {
                 attributeFilters.push(`category:${selectedCategory}`);
@@ -114,13 +111,13 @@ export const VideosView = () => {
             if (selectedSkillLevel !== "all") {
                 attributeFilters.push(`skill_level:${selectedSkillLevel}`);
             }
-            
+
             if (attributeFilters.length > 0) {
                 params.append("attribute_value_ids", attributeFilters.join(","));
             }
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_BACKEND_URL}/videos?${params.toString()}`);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -136,25 +133,21 @@ export const VideosView = () => {
         }
     }, [selectedAccess, selectedCategory, selectedSkillLevel]);
 
-    // Fetch videos on component mount and when filters change
     useEffect(() => {
         fetchVideos();
     }, [fetchVideos]);
 
-    // Client-side filtering for search query
     const filteredVideos = videos.filter((video) => {
         const matchesSearch =
             video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             getAttributeValue(video.attributes, "description").toLowerCase().includes(searchQuery.toLowerCase());
-        
         return matchesSearch;
     });
-
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
                 <Header />
-                
+
                 <div className="container mx-auto px-4 py-8">
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center">
@@ -166,8 +159,6 @@ export const VideosView = () => {
             </div>
         );
     }
-
-
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -316,7 +307,7 @@ export const VideosView = () => {
                                             </div>
 
                                             <Button className="w-full" asChild>
-                                                <Link href={`/video/${video.id}`}>
+                                                <Link href={`${process.env.NEXT_PUBLIC_API_BACKEND_URL}/videos/${video.id}`}>
                                                     {video.access_level === 0 ? (
                                                         <>
                                                             <Play className="w-4 h-4 mr-2" />

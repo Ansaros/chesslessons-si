@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authService, TokenResponse, TokenStorage } from '@/services/auth/auth-service';
 
 interface AuthContextType {
@@ -13,6 +13,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -31,15 +32,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState(null);
 
-    const checkAuth = () => {
-        const token = TokenStorage.getAccessToken();
+    const checkAuth = async () => {
+        const token = await authService.ensureValidToken();
         const authenticated = !!token;
-
+        
         console.log('Auth check - Token exists:', !!token);
         console.log('Auth check - Is remembered:', TokenStorage.isRemembered());
         setIsAuthenticated(authenticated);
 
     };
+
 
     const login = async (formData: FormData, rememberMe: boolean = false) => {
         try {
@@ -53,7 +55,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     };
 
-    const logout = async () => {
+
+
+    const logout = useCallback( async () => {
         try {
             await authService.logout();
         } catch (error) {
@@ -61,12 +65,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } finally {
             setIsAuthenticated(false);
             setUser(null);
-            // Clear the user_email from storage
             localStorage.removeItem("user_email");
             sessionStorage.removeItem("user_email");
             console.log('Auth context - User logged out');
         }
-    };
+    }, []);
 
     useEffect(() => {
         const initialize = () => {
@@ -80,6 +83,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        const checkTokenValidity = async () => {
+            const token = TokenStorage.getAccessToken();
+            if (token) {
+                try {
+                    const isValid = await authService.ensureValidToken();
+                    if (!isValid) {
+                        console.warn("Token expired - forcing logout");
+                        await logout();
+                    }
+                } catch (error) {
+                    console.error('Token validation error:', error);
+                }
+            }
+        };
+
+        const interval = setInterval(checkTokenValidity, 300000); // Проверка каждые 5 минут
+        return () => clearInterval(interval);
+    }, [logout]);
 
     const value = {
         isAuthenticated,
