@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .utils import VideoUtils
 from .crud import VideoDatabase
 from src.core.config import Config
-from .schemas import VideoCreate, VideoUpdate, VideoRead
-from src.models import VideoTable, VideoAttributeLinkTable, AttributeValueTable
+from .schemas import VideoCreate, VideoUpdate, VideoRead, VideoShortRead
+from src.models import VideoTable, VideoAttributeLinkTable, AttributeValueTable, UserTable
 
 class VideoService:
     def __init__(
@@ -77,14 +77,57 @@ class VideoService:
         )
 
         return self.utils.attach_presigned_urls(video_with_attributes)
+    
+
+    async def get(self, video_id: UUID, db: AsyncSession) -> VideoRead:
+        video = await self.database.get(db, video_id, options=[
+            selectinload(VideoTable.attributes)
+            .selectinload(VideoAttributeLinkTable.attribute_value)
+            .selectinload(AttributeValueTable.type)
+        ])
+
+        return self.utils.attach_presigned_urls(video)
+
 
     async def get_many(self, skip: int, limit: int, db: AsyncSession) -> list[VideoRead]:
         videos = await self.database.get_multi(db, skip, limit, options=[
+            selectinload(VideoTable.attributes)
+            .selectinload(VideoAttributeLinkTable.attribute_value)
+            .selectinload(AttributeValueTable.type)
+        ])
+
+        video_ids = [v.id for v in videos]
+        views_map = await self.database.get_views_count_map(db, video_ids)
+
+        return [
+            self.utils.attach_presigned_urls(video).model_copy(update={
+                "views_count": views_map.get(video.id, 0)
+            })
+            for video in videos
+        ]
+    
+
+    async def filter_videos_by_attributes(self, access_level: Optional[int], attribute_value_ids: Optional[list[UUID]], db: AsyncSession) -> tuple[list[VideoShortRead], int]:
+        videos = await self.database.filter_by_access_and_attributes(db, access_level, attribute_value_ids)
+        return [self.utils.attach_presigned_urls(video) for video in videos]
+
+
+    async def view_video(self, video_id: UUID, user: UserTable, db: AsyncSession) -> VideoRead:
+        video = await self.database.get(db, video_id,
+            options=[
                 selectinload(VideoTable.attributes)
                 .selectinload(VideoAttributeLinkTable.attribute_value)
                 .selectinload(AttributeValueTable.type)
-            ])
-        return [self.utils.attach_presigned_urls(video) for video in videos]
+            ]
+        )
+
+        # TODO: access check
+        # if video.access_level == 1: ...
+        # if video.access_level == 2: ...
+
+        await self.database.log_view(db, user.id, video_id)
+
+        return self.utils.attach_presigned_urls(video)
 
 
     async def update_video(
@@ -142,23 +185,3 @@ class VideoService:
             self.utils.delete_prefix_from_spaces(hls_prefix)
 
         await self.database.remove(db, id=video_id)
-
-
-    # async def get_videos_by_category(self, category_id: UUID, db: AsyncSession) -> list[VideoTable]:
-    #     return await self.database.get_objects(db, return_many=True, category_id=category_id)
-
-
-    # async def get_videos_by_level(self, level: str, db: AsyncSession) -> list[VideoTable]:
-    #     return await self.database.get_objects(db, return_many=True, level_required=level)
-
-
-    # async def get_free_videos(self, db: AsyncSession) -> list[VideoTable]:
-    #     return await self.database.get_objects(db, return_many=True, access_level=0)
-
-
-    # async def get_paid_videos(self, db: AsyncSession) -> list[VideoTable]:
-    #     return await self.database.get_objects(db, return_many=True, access_level=1)
-
-
-    # async def get_subscription_videos(self, db: AsyncSession) -> list[VideoTable]:
-    #     return await self.database.get_objects(db, return_many=True, access_level=2)

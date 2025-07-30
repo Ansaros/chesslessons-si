@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 import Link from "next/link"
 import Image from "next/image"
@@ -32,6 +32,7 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table"
+import { toast } from "sonner"
 
 import {
     Upload,
@@ -43,58 +44,12 @@ import {
     Users,
     PlayCircle,
     Settings,
-    BarChart3
+    BarChart3,
+    Loader2
 } from "lucide-react"
-
-
-// interface Props {
-//     adminId: string;
-// }
-// Mock data
-const mockVideos = [
-    {
-        id: 1,
-        title: "Сицилианская защита: Вариант Найдорфа",
-        category: "debuts",
-        categoryName: "Дебюты",
-        price: 2500,
-        access: 1,
-        views: 1250,
-        purchases: 89,
-        status: "published",
-        createdAt: "2024-01-15",
-        skillLevel: "beginner",
-        accessType: "purchase",
-    },
-    {
-        id: 2,
-        title: "Основы позиционной игры",
-        category: "strategy",
-        categoryName: "Стратегии",
-        price: 0,
-        access: 0,
-        views: 3420,
-        purchases: 0,
-        status: "published",
-        createdAt: "2024-01-10",
-        skillLevel: "intermediate",
-        accessType: "free",
-    },
-    {
-        id: 3,
-        title: "Тактика: Двойной удар",
-        category: "tactics",
-        categoryName: "Тактика",
-        price: 1800,
-        access: 1,
-        views: 890,
-        purchases: 45,
-        status: "draft",
-        createdAt: "2024-01-20",
-        skillLevel: "advanced",
-        accessType: "subscription",
-    },
-]
+import { LogoutButton } from "@/modules/auth/ui/components/logout-component"
+import { adminService, AdminVideo, AdminService } from "@/services/admin/admin-service"
+import { authService } from "@/services/auth/auth-service"
 
 const categories = [
     { value: "debuts", label: "Дебюты" },
@@ -105,8 +60,10 @@ const categories = [
 
 export const AdminView = () => {
     const [activeTab, setActiveTab] = useState("overview")
-    const [videos, setVideos] = useState(mockVideos)
+    const [videos, setVideos] = useState<AdminVideo[]>([])
+    const [loading, setLoading] = useState(true)
     const [showAddVideo, setShowAddVideo] = useState(false)
+    const [uploading, setUploading] = useState(false)
     const [newVideo, setNewVideo] = useState({
         title: "",
         description: "",
@@ -117,42 +74,139 @@ export const AdminView = () => {
         thumbnailFile: null as File | null,
     })
 
-    const handleAddVideo = () => {
-        const video = {
-            id: videos.length + 1,
-            title: newVideo.title,
-            category: newVideo.category,
-            categoryName: categories.find((c) => c.value === newVideo.category)?.label || "",
-            price: Number.parseInt(newVideo.price) || 0,
-            access: Number.parseInt(newVideo.access),
-            views: 0,
-            purchases: 0,
-            status: "draft" as const,
-            createdAt: new Date().toISOString().split("T")[0],
-            skillLevel: "beginner",
-            accessType: "purchase",
+    const videoFileRef = useRef<HTMLInputElement>(null)
+    const thumbnailFileRef = useRef<HTMLInputElement>(null)
+
+    // Initialize admin service with token
+    useEffect(() => {
+        const token = authService.getAccessToken()
+        if (token) {
+            adminService.setToken(token)
+        }
+    }, [])
+
+    // Fetch videos on component mount
+    useEffect(() => {
+        fetchVideos()
+    }, [])
+
+    const fetchVideos = async () => {
+        try {
+            setLoading(true)
+            const response = await adminService.fetchVideos()
+            setVideos(response.data)
+        } catch (error) {
+            console.error("Error fetching videos:", error)
+            toast.error("Не удалось загрузить видео")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleAddVideo = async () => {
+        if (!newVideo.videoFile || !newVideo.thumbnailFile) {
+            toast.error("Пожалуйста, выберите видео и превью файлы")
+            return
         }
 
-        setVideos([...videos, video])
-        setNewVideo({
-            title: "",
-            description: "",
-            category: "",
-            price: "",
-            access: "0",
-            videoFile: null,
-            thumbnailFile: null,
-        })
-        setShowAddVideo(false)
+        try {
+            setUploading(true)
+            const formData = AdminService.buildVideoForm({
+                video_file: newVideo.videoFile,
+                preview_file: newVideo.thumbnailFile,
+                title: newVideo.title,
+                description: newVideo.description,
+                price: newVideo.price || "0",
+                access_level: parseInt(newVideo.access),
+            })
+
+            await adminService.uploadVideo(formData)
+            
+            toast.success("Видео успешно добавлено")
+            
+            setNewVideo({
+                title: "",
+                description: "",
+                category: "",
+                price: "",
+                access: "0",
+                videoFile: null,
+                thumbnailFile: null,
+            })
+            setShowAddVideo(false)
+            fetchVideos() // Refresh the list
+        } catch (error) {
+            console.error("Error uploading video:", error)
+            toast.error("Не удалось загрузить видео")
+        } finally {
+            setUploading(false)
+        }
     }
 
-    const handleDeleteVideo = (id: number) => {
-        setVideos(videos.filter((v) => v.id !== id))
+    const handleDeleteVideo = async (id: string) => {
+        try {
+            await adminService.deleteVideo(id)
+            toast.success("Видео успешно удалено")
+            fetchVideos() // Refresh the list
+        } catch (error) {
+            console.error("Error deleting video:", error)
+            toast.error("Не удалось удалить видео")
+        }
     }
 
-    const totalRevenue = videos.reduce((sum, video) => sum + video.price * video.purchases, 0)
-    const totalViews = videos.reduce((sum, video) => sum + video.views, 0)
-    const totalPurchases = videos.reduce((sum, video) => sum + video.purchases, 0)
+    const handleFileSelect = (file: File, type: 'video' | 'thumbnail') => {
+        if (type === 'video') {
+            setNewVideo({ ...newVideo, videoFile: file })
+        } else {
+            setNewVideo({ ...newVideo, thumbnailFile: file })
+        }
+    }
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault()
+        e.currentTarget.classList.add('border-blue-500', 'bg-blue-50')
+    }
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault()
+        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50')
+    }
+
+    const handleDrop = (e: React.DragEvent, type: 'video' | 'thumbnail') => {
+        e.preventDefault()
+        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50')
+        
+        const files = Array.from(e.dataTransfer.files)
+        if (files.length > 0) {
+            const file = files[0]
+            if (type === 'video' && file.type.startsWith('video/')) {
+                handleFileSelect(file, 'video')
+            } else if (type === 'thumbnail' && file.type.startsWith('image/')) {
+                handleFileSelect(file, 'thumbnail')
+            } else {
+                toast.error(`Пожалуйста, выберите ${type === 'video' ? 'видео' : 'изображение'} файл`)
+            }
+        }
+    }
+
+    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'video' | 'thumbnail') => {
+        const file = e.target.files?.[0]
+        if (file) {
+            handleFileSelect(file, type)
+        }
+    }
+
+    const totalRevenue = videos.reduce((sum, video) => sum + (parseFloat(video.price) * (video.views_count || 0)), 0)
+    const totalViews = videos.reduce((sum, video) => sum + (video.views_count || 0), 0)
+
+    const formatPrice = (price: string) => {
+        const numPrice = parseFloat(price)
+        return numPrice === 0 ? "Бесплатно" : `${numPrice.toLocaleString()} ₸`
+    }
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('ru-RU')
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -176,9 +230,13 @@ export const AdminView = () => {
                             <Link href="/" className="text-slate-600 hover:text-slate-800 transition-colors">
                                 На сайт
                             </Link>
-                            <Link href="/login" className="text-slate-600 hover:text-slate-800 transition-colors">
-                                Выйти
-                            </Link>
+                            <LogoutButton
+                                variant="ghost"
+                                size="sm"
+                                className="text-slate-600 hover:text-slate-800"
+                                showIcon={true}
+                                showText={true}
+                            />
                         </nav>
                     </div>
                 </div>
@@ -261,17 +319,6 @@ export const AdminView = () => {
 
                                     <Card>
                                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Покупки</CardTitle>
-                                            <PlayCircle className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{totalPurchases}</div>
-                                            <p className="text-xs text-muted-foreground">+15% с прошлого месяца</p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                             <CardTitle className="text-sm font-medium">Всего видео</CardTitle>
                                             <PlayCircle className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
@@ -336,56 +383,57 @@ export const AdminView = () => {
                                         <CardDescription>Управляйте своими видеоуроками</CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Название</TableHead>
-                                                    <TableHead>Категория</TableHead>
-                                                    <TableHead>Цена</TableHead>
-                                                    <TableHead>Просмотры</TableHead>
-                                                    <TableHead>Покупки</TableHead>
-                                                    <TableHead>Статус</TableHead>
-                                                    <TableHead>Действия</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {videos.map((video) => (
-                                                    <TableRow key={video.id}>
-                                                        <TableCell className="font-medium">{video.title}</TableCell>
-                                                        <TableCell>
-                                                            <Badge variant="outline">{video.categoryName}</Badge>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {video.price === 0 ? (
-                                                                <Badge className="bg-green-500">Бесплатно</Badge>
-                                                            ) : (
-                                                                <span className="font-semibold">{video.price.toLocaleString()} ₸</span>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell>{video.views.toLocaleString()}</TableCell>
-                                                        <TableCell>{video.purchases}</TableCell>
-                                                        <TableCell>
-                                                            <Badge variant={video.status === "published" ? "default" : "secondary"}>
-                                                                {video.status === "published" ? "Опубликовано" : "Черновик"}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-2">
-                                                                <Button size="sm" variant="outline">
-                                                                    <Eye className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button size="sm" variant="outline">
-                                                                    <Edit className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button size="sm" variant="outline" onClick={() => handleDeleteVideo(video.id)}>
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
-                                                        </TableCell>
+                                        {loading ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="w-6 h-6 animate-spin" />
+                                                <span className="ml-2">Загрузка видео...</span>
+                                            </div>
+                                        ) : (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Название</TableHead>
+                                                        <TableHead>Цена</TableHead>
+                                                        <TableHead>Просмотры</TableHead>
+                                                        <TableHead>Дата создания</TableHead>
+                                                        <TableHead>Действия</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {videos.map((video) => (
+                                                        <TableRow key={video.id}>
+                                                            <TableCell className="font-medium">{video.title}</TableCell>
+                                                            <TableCell>
+                                                                {video.access_level === 0 ? (
+                                                                    <Badge className="bg-green-500">Бесплатно</Badge>
+                                                                ) : (
+                                                                    <span className="font-semibold">{formatPrice(video.price)}</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell>{video.views_count?.toLocaleString() || 0}</TableCell>
+                                                            <TableCell>{formatDate(video.created_at)}</TableCell>
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Button size="sm" variant="outline">
+                                                                        <Eye className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button size="sm" variant="outline">
+                                                                        <Edit className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button 
+                                                                        size="sm" 
+                                                                        variant="outline" 
+                                                                        onClick={() => handleDeleteVideo(video.id)}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
@@ -432,7 +480,7 @@ export const AdminView = () => {
                         <h3 className="text-xl font-bold text-slate-800 mb-6">Добавить новое видео</h3>
 
                         <div className="space-y-4">
-                            <div>
+                            <div className="grid gap-3">
                                 <Label htmlFor="title">Название видео</Label>
                                 <Input
                                     id="title"
@@ -442,7 +490,7 @@ export const AdminView = () => {
                                 />
                             </div>
 
-                            <div>
+                            <div className="grid gap-3">
                                 <Label htmlFor="description">Описание</Label>
                                 <Textarea
                                     id="description"
@@ -454,7 +502,7 @@ export const AdminView = () => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
+                                <div className="grid gap-3">
                                     <Label htmlFor="category">Категория</Label>
                                     <Select
                                         value={newVideo.category}
@@ -473,7 +521,7 @@ export const AdminView = () => {
                                     </Select>
                                 </div>
 
-                                <div>
+                                <div className="grid gap-3">
                                     <Label htmlFor="access">Тип доступа</Label>
                                     <Select
                                         value={newVideo.access}
@@ -491,7 +539,7 @@ export const AdminView = () => {
                             </div>
 
                             {newVideo.access === "1" && (
-                                <div>
+                                <div className="grid gap-3">
                                     <Label htmlFor="price">Цена (₸)</Label>
                                     <Input
                                         id="price"
@@ -503,40 +551,80 @@ export const AdminView = () => {
                                 </div>
                             )}
 
-                            <div>
+                            <div className="grid gap-3">
                                 <Label htmlFor="video">Видеофайл</Label>
-                                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                                <div 
+                                    className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-slate-400 hover:bg-slate-50"
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, 'video')}
+                                    onClick={() => videoFileRef.current?.click()}
+                                >
                                     <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                                    <p className="text-slate-600">Перетащите видеофайл сюда или нажмите для выбора</p>
+                                    <p className="text-slate-600 mb-2">
+                                        {newVideo.videoFile ? newVideo.videoFile.name : "Перетащите видеофайл сюда или нажмите для выбора"}
+                                    </p>
+                                    {newVideo.videoFile && (
+                                        <p className="text-xs text-green-600">✓ Файл выбран</p>
+                                    )}
                                     <Input
+                                        ref={videoFileRef}
                                         type="file"
                                         accept="video/*"
                                         className="hidden"
-                                        onChange={(e) => setNewVideo({ ...newVideo, videoFile: e.target.files?.[0] || null })}
+                                        onChange={(e) => handleFileInputChange(e, 'video')}
                                     />
                                 </div>
                             </div>
 
-                            <div>
+                            <div className="grid gap-3">
                                 <Label htmlFor="thumbnail">Превью (миниатюра)</Label>
-                                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                                <div 
+                                    className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-slate-400 hover:bg-slate-50"
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, 'thumbnail')}
+                                    onClick={() => thumbnailFileRef.current?.click()}
+                                >
                                     <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                                    <p className="text-slate-600">Перетащите изображение сюда или нажмите для выбора</p>
+                                    <p className="text-slate-600 mb-2">
+                                        {newVideo.thumbnailFile ? newVideo.thumbnailFile.name : "Перетащите изображение сюда или нажмите для выбора"}
+                                    </p>
+                                    {newVideo.thumbnailFile && (
+                                        <p className="text-xs text-green-600">✓ Файл выбран</p>
+                                    )}
                                     <Input
+                                        ref={thumbnailFileRef}
                                         type="file"
                                         accept="image/*"
                                         className="hidden"
-                                        onChange={(e) => setNewVideo({ ...newVideo, thumbnailFile: e.target.files?.[0] || null })}
+                                        onChange={(e) => handleFileInputChange(e, 'thumbnail')}
                                     />
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex gap-3 mt-6">
-                            <Button onClick={handleAddVideo} className="flex-1">
-                                Добавить видео
+                            <Button 
+                                onClick={handleAddVideo} 
+                                className="flex-1"
+                                disabled={uploading}
+                            >
+                                {uploading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Загрузка...
+                                    </>
+                                ) : (
+                                    "Добавить видео"
+                                )}
                             </Button>
-                            <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setShowAddVideo(false)}>
+                            <Button 
+                                variant="outline" 
+                                className="flex-1 bg-transparent" 
+                                onClick={() => setShowAddVideo(false)}
+                                disabled={uploading}
+                            >
                                 Отмена
                             </Button>
                         </div>

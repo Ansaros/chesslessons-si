@@ -1,13 +1,11 @@
 import axios, { AxiosResponse } from 'axios';
 import { z } from 'zod';
 
-const NEXT_PUBLIC_API_BACKEND_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL;
-
 const registerSchema = z.object({
-    email: z.string().email("Неверный формат почты"),
+    email: z.email("Неверный формат почты"),
     password: z.string().min(1, "Укажите пароль"),
     chess_level: z.string().min(1, "Укажите ваш уровень игры"),
-});
+})
 
 const loginSchema = z.object({
     grant_type: z.string().regex(/^password$/, "Grant type must be password").optional(),
@@ -53,43 +51,54 @@ const createValidationError = (field: string, message: string): ValidationError 
     }]
 });
 
-const authApi = axios.create({
-    baseURL: process.env.NODE_ENV === 'development' 
-        ? '/api/auth'
-        : `${NEXT_PUBLIC_API_BACKEND_URL}/auth`,
+// Debug environment variable
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BACKEND_URL;
+console.log('API_BASE_URL from env:', API_BASE_URL);
+
+export const authApi = axios.create({
+    baseURL: `http://159.65.223.248:8000/auth`,
     timeout: 10000,
+});
+
+authApi.interceptors.request.use((config) => {
+    const token = TokenStorage.getAccessToken();
+    console.log('Interceptor: Token retrieved:', token);
+    if (token) {
+        (config.headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    } else {
+        console.log('Interceptor: No token found');
+        delete (config.headers as Record<string, string>)["Authorization"];
+    }
+    return config;
 });
 
 class TokenStorage {
     static setTokens(accessToken: string, refreshToken?: string, rememberMe: boolean = false) {
         const storage = rememberMe ? localStorage : sessionStorage;
-        
         storage.setItem("access_token", accessToken);
         if (refreshToken) {
             storage.setItem("refresh_token", refreshToken);
         }
         storage.setItem("remember_me", rememberMe.toString());
-        
-        // Clear from the other storage to avoid conflicts
         const otherStorage = rememberMe ? sessionStorage : localStorage;
         otherStorage.removeItem("access_token");
         otherStorage.removeItem("refresh_token");
         otherStorage.removeItem("remember_me");
     }
-    
+
     static getAccessToken(): string | null {
         return localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
     }
-    
+
     static getRefreshToken(): string | null {
         return localStorage.getItem("refresh_token") || sessionStorage.getItem("refresh_token");
     }
-    
+
     static isRemembered(): boolean {
         const remembered = localStorage.getItem("remember_me") || sessionStorage.getItem("remember_me");
         return remembered === "true";
     }
-    
+
     static clearTokens() {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
@@ -103,34 +112,60 @@ class TokenStorage {
 class AuthService {
     async register(data: { email: string; password: string; chess_level: string }): Promise<TokenResponse> {
         try {
-            const validatedData = registerSchema.parse(data);
+            // Pass chess level name directly to backend, let backend handle UUID conversion
+            const payload = { email: data.email, password: data.password, chess_level: data.chess_level };
+            console.log('Starting registration with payload:', { ...payload, password: '[REDACTED]' });
+
+            const validatedData = registerSchema.parse(payload);
+            console.log('Data validation passed');
+
             const response: AxiosResponse<TokenResponse> = await authApi.post('/register', validatedData, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' },
             });
+            console.log('Registration API call successful:', response.status);
             return response.data;
         } catch (error) {
+            console.log('Registration error caught:', error);
+
             if (error instanceof z.ZodError) {
+                console.log('Zod validation error:', error.issues);
                 const detail = error.issues.map(err => ({
                     loc: err.path,
                     msg: err.message,
                     type: err.code,
                 }));
-                throw { detail, status: 422 };
+                const errorToThrow = { detail, status: 422 };
+                console.log('Throwing validation error:', errorToThrow);
+                throw errorToThrow;
             }
+
             if (axios.isAxiosError(error)) {
-                throw {
+                console.log('Axios error details:', {
+                    message: error.message,
+                    response: error.response?.data,
+                    status: error.response?.status
+                });
+
+                const errorToThrow = {
                     detail: error.response?.data?.detail || createValidationError("server", "Registration failed").detail,
                     status: error.response?.status || 500
                 };
+                console.log('Throwing axios error:', errorToThrow);
+                throw errorToThrow;
             }
-            throw createValidationError("server", "Internal server error");
+
+            console.log('Unknown error type:', typeof error, error);
+            const fallbackError = createValidationError("server", "Internal server error");
+            console.log('Throwing fallback error:', fallbackError);
+            throw fallbackError;
         }
     }
 
     async login(formData: FormData, rememberMe: boolean = false): Promise<TokenResponse> {
         try {
+            console.log('Starting login process');
+            console.log('Auth API baseURL:', authApi.defaults.baseURL);
+
             const loginData = {
                 grant_type: formData.get("grant_type"),
                 username: formData.get("username"),
@@ -148,7 +183,7 @@ class AuthService {
             });
 
             if (!cleanedData.username) {
-                throw {
+                const errorToThrow = {
                     detail: [{
                         loc: ["username"],
                         msg: "Username is required",
@@ -156,10 +191,11 @@ class AuthService {
                     }],
                     status: 422
                 };
+                throw errorToThrow;
             }
 
             if (!cleanedData.password) {
-                throw {
+                const errorToThrow = {
                     detail: [{
                         loc: ["password"],
                         msg: "Password is required",
@@ -167,48 +203,50 @@ class AuthService {
                     }],
                     status: 422
                 };
+                throw errorToThrow;
             }
 
-            const validatedData = loginSchema.parse(cleanedData);
-
-            const backendFormData = new FormData();
-            Object.entries(validatedData).forEach(([key, value]) => {
+            const backendFormData = new URLSearchParams();
+            Object.entries(cleanedData).forEach(([key, value]) => {
                 if (value !== undefined && value !== null) {
                     backendFormData.append(key, value.toString());
                 }
             });
 
-            const response: AxiosResponse<TokenResponse> = await authApi.post('/login', backendFormData, {
+            console.log('Making request to:', `${authApi.defaults.baseURL}/login`);
+            console.log('Request data:', { ...cleanedData, password: '[REDACTED]' });
+
+            const response: AxiosResponse<TokenResponse> = await authApi.post('/login', backendFormData.toString(), {
                 headers: {
-                    'Content-Type': 'multipart/form-data',
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 }
             });
 
+            console.log('Login response:', response.status, response.data);
+
             TokenStorage.setTokens(
-                response.data.access_token, 
-                response.data.refresh_token, 
+                response.data.access_token,
+                response.data.refresh_token,
                 rememberMe
             );
 
             return response.data;
         } catch (error) {
-            if (error instanceof z.ZodError) {
-                const detail = error.issues.map(err => ({
-                    loc: err.path,
-                    msg: err.message,
-                    type: err.code,
-                }));
-                throw { detail, status: 422 };
-            }
+            console.log('Login error caught:', error);
+
             if (axios.isAxiosError(error)) {
-                throw {
+                console.log('Axios error config:', error.config);
+                const errorToThrow = {
                     detail: error.response?.data?.detail || createValidationError("server", "Login failed").detail,
                     status: error.response?.status || 500
                 };
+                throw errorToThrow;
             }
+
             if (error && typeof error === 'object' && 'detail' in error) {
                 throw error;
             }
+
             throw createValidationError("server", "Internal server error");
         }
     }
@@ -216,40 +254,25 @@ class AuthService {
     async refreshToken(): Promise<TokenResponse> {
         try {
             const refreshToken = TokenStorage.getRefreshToken();
-            
-            if (!refreshToken) {
-                throw {
-                    detail: createValidationError("authorization", "Missing refresh token").detail,
-                    status: 401
-                };
-            }
-
-            const response: AxiosResponse<TokenResponse> = await authApi.post('/token/refresh', {}, {
-                headers: {
-                    'Authorization': `Bearer ${refreshToken}`,
-                }
+            if (!refreshToken) throw new Error("No refresh token");
+            console.log('Attempting to refresh token with:', refreshToken.substring(0, 10) + "...");
+            const response = await authApi.post('/token/refresh', {}, {
+                headers: { Authorization: `Bearer ${refreshToken}` }
             });
-
+            console.log('Refresh successful:', response.data);
             const rememberMe = TokenStorage.isRemembered();
             TokenStorage.setTokens(
                 response.data.access_token,
-                response.data.refresh_token || refreshToken, 
+                response.data.refresh_token,
                 rememberMe
             );
-
             return response.data;
         } catch (error) {
-            if (axios.isAxiosError(error)) {
-                TokenStorage.clearTokens();
-                throw {
-                    detail: error.response?.data?.detail || createValidationError("server", "Token refresh failed").detail,
-                    status: error.response?.status || 500
-                };
-            }
-            throw createValidationError("server", "Internal server error");
+            console.error('Refresh failed:', error);
+            TokenStorage.clearTokens();
+            throw new Error("REFRESH_FAILED");
         }
     }
-
     async passwordRecovery(email: string): Promise<StatusResponse> {
         try {
             const validatedData = passwordRecoverySchema.parse({ email });
@@ -316,9 +339,9 @@ class AuthService {
     async logout(): Promise<StatusResponse> {
         try {
             const refreshToken = TokenStorage.getRefreshToken();
-            
+
             let response: AxiosResponse<StatusResponse>;
-            
+
             if (refreshToken) {
                 response = await authApi.post('/logout', {}, {
                     headers: {
@@ -330,11 +353,11 @@ class AuthService {
             }
 
             TokenStorage.clearTokens();
-            
+
             return response.data;
         } catch (error) {
             TokenStorage.clearTokens();
-            
+
             if (axios.isAxiosError(error)) {
                 throw {
                     detail: error.response?.data?.detail || createValidationError("server", "Logout failed").detail,

@@ -13,12 +13,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    chess_level: str
-
-
 class ChangePasswordRequest(BaseModel):
     email: EmailStr
 

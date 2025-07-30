@@ -58,6 +58,17 @@ class VideoRead(VideoBase):
     id: UUID
     preview_url: Optional[str] = None
     hls_url: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     attributes: Optional[list[AttributeTypedValueRead]] = None
     hls_segments: dict[str, str] = {}
+    views_count: int = 0
+
+class VideoShortRead(BaseModel):
+    id: UUID
+    title: str
+    preview_url: str
+    access_level: int
+    price: Decimal | None
+    attributes: Optional[list[AttributeTypedValueRead]] = None
+
+    model_config = {"from_attributes": True}

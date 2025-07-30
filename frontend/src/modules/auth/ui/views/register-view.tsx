@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import Link from "next/link"
 import Image from "next/image"
@@ -28,16 +28,20 @@ import {
 } from "@/components/ui/select"
 
 import { authService } from "@/services/auth/auth-service"
+import { profileService, ChessLevel } from "@/services/profile/profile-service"
 
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 interface ErrorDetail {
     msg: string;
+    loc?: (string | number)[];
+    type?: string;
 }
 
 interface APIError {
     detail?: ErrorDetail[];
     message?: string;
+    status?: number;
 }
 
 export const RegisterView = () => {
@@ -46,6 +50,8 @@ export const RegisterView = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>("");
     const [success, setSuccess] = useState<string>("");
+    const [chessLevels, setChessLevels] = useState<ChessLevel[]>([]);
+    const [loadingLevels, setLoadingLevels] = useState(true);
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -55,6 +61,30 @@ export const RegisterView = () => {
         skillLevel: "",
         agreeToTerms: false,
     });
+
+    // Fetch chess levels on component mount
+    useEffect(() => {
+        fetchChessLevels();
+    }, []);
+
+    const fetchChessLevels = async () => {
+        try {
+            setLoadingLevels(true);
+            const levels = await profileService.getChessLevels();
+            setChessLevels(levels);
+        } catch (error) {
+            console.error("Error fetching chess levels:", error);
+            // Fallback to basic levels if API is not available
+            setChessLevels([
+                { id: "beginner", value: "Начинающий" },
+                { id: "amateur", value: "Любитель" },
+                { id: "master", value: "Мастер" },
+                { id: "grandmaster", value: "Гроссмейстер" }
+            ]);
+        } finally {
+            setLoadingLevels(false);
+        }
+    };
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,6 +115,8 @@ export const RegisterView = () => {
                 chess_level: formData.skillLevel,
             };
 
+            console.log('Attempting registration with:', { ...registrationData, password: '[REDACTED]' });
+
             const response = await authService.register(registrationData);
 
             console.log("Registration successful:", response);
@@ -97,19 +129,39 @@ export const RegisterView = () => {
 
         } catch (error: unknown) {
             console.error("Registration error:", error);
+            console.error("Error type:", typeof error);
 
-            if (
-                typeof error === "object" &&
-                error !== null &&
-                "detail" in error &&
-                Array.isArray((error as { detail: unknown }).detail)
-            ) {
-                const detailArray = (error as { detail: { msg: string }[] }).detail;
-                const errorMessage = detailArray.map(err => err.msg).join(", ");
-                setError(errorMessage);
-            } else {
-                setError("Ошибка регистрации. Попробуйте еще раз.");
+            let errorMessage = "Ошибка регистрации. Попробуйте еще раз.";
+
+            if (error && typeof error === "object" && error !== null) {
+                const apiError = error as APIError;
+
+                console.log('API Error details:', apiError);
+
+                if ('detail' in apiError && Array.isArray(apiError.detail)) {
+                    const errorMessages = apiError.detail
+                        .map(err => {
+                            if (typeof err === 'object' && err !== null && 'msg' in err) {
+                                return err.msg;
+                            }
+                            return String(err);
+                        })
+                        .filter(msg => msg.length > 0);
+
+                    if (errorMessages.length > 0) {
+                        errorMessage = errorMessages.join(", ");
+                    }
+                }
+                else if ('detail' in apiError && typeof apiError.detail === 'string') {
+                    errorMessage = apiError.detail;
+                }
+                else if ('message' in apiError && typeof apiError.message === 'string') {
+                    errorMessage = apiError.message;
+                }
             }
+
+            console.log('Final error message:', errorMessage);
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -254,16 +306,17 @@ export const RegisterView = () => {
                                 <Select
                                     value={formData.skillLevel}
                                     onValueChange={(value) => setFormData({ ...formData, skillLevel: value })}
-                                    disabled={isLoading}
+                                    disabled={isLoading || loadingLevels}
                                 >
                                     <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Выберите ваш уровень" />
+                                        <SelectValue placeholder={loadingLevels ? "Загрузка уровней..." : "Выберите ваш уровень"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="beginner">Начинающий</SelectItem>
-                                        <SelectItem value="rank-4-3">4-3 разряд</SelectItem>
-                                        <SelectItem value="rank-2-1">2-1 разряд</SelectItem>
-                                        <SelectItem value="master">КМС и выше</SelectItem>
+                                        {chessLevels.map((level) => (
+                                            <SelectItem key={level.id} value={level.id}>
+                                                {level.value}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

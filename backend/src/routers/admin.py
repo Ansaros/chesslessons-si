@@ -12,7 +12,7 @@ from src.modules.attributes.service import AttributeService
 from src.modules.videos.dependencies import get_video_service
 from src.modules.attributes.dependencies import get_attribute_service
 from src.modules.videos.schemas import VideoCreate, VideoUpdate, VideoRead
-from src.modules.attributes.schemas import AttributeTypeCreate, AttributeTypeRead, AttributeValueCreate, AttributeValueRead, AttributeTypeSimple
+from src.modules.attributes.schemas import AttributeTypeCreate, AttributeValueCreate, AttributeValueRead, AttributeTypeSimple
 
 
 router = APIRouter()
@@ -82,16 +82,6 @@ async def create_attribute_type(
     attribute_service: AttributeService = Depends(get_attribute_service),
 ):
     return await attribute_service.create_type(data, db)
-
-
-@router.get("/attribute/types", response_model=ListResponse[AttributeTypeRead], summary="Get all attribute types")
-async def get_attribute_types(
-    db: AsyncSession = Depends(get_db),
-    current_user: UserTable = Depends(get_admin_user),
-    attribute_service: AttributeService = Depends(get_attribute_service),
-):
-    types = await attribute_service.get_all_types(db)
-    return ListResponse(data=types, total=len(types))
 
 
 @router.post("/attribute/values", response_model=AttributeValueRead, summary="Create a new attribute value")

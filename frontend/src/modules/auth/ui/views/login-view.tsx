@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import type React from "react";
 import { useState } from "react";
@@ -23,12 +23,15 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { authService } from "@/services/auth/auth-service";
 
 interface ErrorDetail {
-  msg: string;
+    msg: string;
+    loc?: (string | number)[];
+    type?: string;
 }
 
 interface APIError {
-  detail?: ErrorDetail[];
-  message?: string;
+    detail?: ErrorDetail[] | string;
+    message?: string;
+    status?: number;
 }
 
 export const LoginView = () => {
@@ -52,30 +55,60 @@ export const LoginView = () => {
             loginFormData.append("password", formData.password);
             loginFormData.append("grant_type", "password");
 
+            console.log('Attempting login with remember me:', formData.rememberMe);
+
             const response = await authService.login(loginFormData, formData.rememberMe);
 
             console.log("Login successful:", response);
+            console.log("Tokens stored, remember me:", formData.rememberMe);
 
-            if (formData.email === "admin@chessmaster.com") {
+            // Store the user's email for admin check in the Header component
+            const storage = formData.rememberMe ? localStorage : sessionStorage;
+            storage.setItem("user_email", formData.email);
+
+            if (formData.email === "admin@chess.com" && formData.password === "adminchess03029") {
                 window.location.href = "/admin";
             } else {
-                window.location.href = "/profile";
+                window.location.href = "/videos";
             }
         } catch (error: unknown) {
             console.error("Login error:", error);
 
-            if (typeof error === "object" && error !== null && "detail" in error) {
+            let errorMessage = "Произошла непредвиденная ошибка";
+
+            if (error && typeof error === "object" && error !== null) {
                 const apiError = error as APIError;
 
-                if (Array.isArray(apiError.detail)) {
-                    const errorMessage = apiError.detail.map(err => err.msg).join(", ");
-                    setError(errorMessage);
-                } else {
-                    setError("Неверные учетные данные");
+                if ('detail' in apiError && Array.isArray(apiError.detail)) {
+                    const errorMessages = apiError.detail
+                        .map(err => {
+                            if (typeof err === 'object' && err !== null && 'msg' in err) {
+                                return err.msg;
+                            }
+                            return String(err);
+                        })
+                        .filter(msg => msg.length > 0);
+                    
+                    if (errorMessages.length > 0) {
+                        errorMessage = errorMessages.join(", ");
+                    }
                 }
-            } else {
-                setError("Произошла непредвиденная ошибка");
+                else if ('detail' in apiError && typeof apiError.detail === 'string') {
+                    errorMessage = apiError.detail;
+                }
+                else if ('message' in apiError && typeof apiError.message === 'string') {
+                    errorMessage = apiError.message;
+                }
+                
+                if (errorMessage.toLowerCase().includes('invalid') || 
+                    errorMessage.toLowerCase().includes('incorrect') ||
+                    errorMessage.toLowerCase().includes('wrong')) {
+                    errorMessage = "Неверные учетные данные";
+                }
             }
+
+            console.log('Final error message:', errorMessage);
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -160,7 +193,10 @@ export const LoginView = () => {
                                     <Checkbox
                                         id="rememberMe"
                                         checked={formData.rememberMe}
-                                        onCheckedChange={(checked) => setFormData({ ...formData, rememberMe: checked as boolean })}
+                                        onCheckedChange={(checked) => {
+                                            console.log('Remember me changed to:', checked);
+                                            setFormData({ ...formData, rememberMe: checked as boolean });
+                                        }}
                                         disabled={isLoading}
                                     />
                                     <Label htmlFor="rememberMe" className="text-sm">
