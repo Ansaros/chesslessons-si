@@ -11,6 +11,7 @@ import {
   Maximize,
   Loader2,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { formatDuration } from "@/utils/videoHelpers";
 
@@ -22,6 +23,7 @@ interface HLSPlayerProps {
 export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<any>(null);
+  const retryCountRef = useRef(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -30,16 +32,25 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("Загрузка видео...");
 
-  // Инициализация HLS
-  useEffect(() => {
+  // Функция для создания HLS плеера
+  const createHLSPlayer = async (retryCount = 0) => {
     if (!videoRef.current || !hlsUrl) return;
 
     const video = videoRef.current;
     setIsLoading(true);
     setError(null);
+    retryCountRef.current = retryCount;
 
-    console.log("Loading HLS URL:", hlsUrl);
+    // Обновляем сообщение о загрузке
+    if (retryCount === 0) {
+      setLoadingMessage("Загрузка видео...");
+    } else {
+      setLoadingMessage(`Повторная попытка ${retryCount}/5...`);
+    }
+
+    console.log(`Loading HLS URL (attempt ${retryCount + 1}):`, hlsUrl);
 
     // Очищаем предыдущий HLS instance
     if (hlsRef.current) {
@@ -52,129 +63,232 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
       console.log("Using native HLS support");
       video.src = hlsUrl;
 
-      video.addEventListener("loadedmetadata", () => {
+      const handleLoadedMetadata = () => {
         console.log("Native HLS: metadata loaded");
         setIsLoading(false);
         setDuration(video.duration);
-      });
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        video.removeEventListener("error", handleError);
+      };
 
-      video.addEventListener("error", (e) => {
+      const handleError = (e: any) => {
         console.error("Native HLS error:", e);
-        setError(
-          "Ошибка загрузки видео. Возможно, проблема с CORS настройками сервера."
-        );
-        setIsLoading(false);
-      });
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        video.removeEventListener("error", handleError);
+
+        if (retryCount < 5) {
+          setTimeout(
+            () => createHLSPlayer(retryCount + 1),
+            2000 * (retryCount + 1)
+          );
+        } else {
+          setError("Не удалось загрузить видео после нескольких попыток");
+          setIsLoading(false);
+        }
+      };
+
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
+      video.addEventListener("error", handleError);
+
+      // Таймаут для нативного HLS
+      setTimeout(() => {
+        if (isLoading && retryCount < 5) {
+          video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+          video.removeEventListener("error", handleError);
+          createHLSPlayer(retryCount + 1);
+        }
+      }, 30000 + retryCount * 10000); // Увеличиваем таймаут с каждой попыткой
     } else {
       // Для других браузеров используем hls.js
-      import("hls.js")
-        .then(({ default: Hls }) => {
-          if (Hls.isSupported()) {
-            // Извлекаем параметры подписи AWS из исходного URL
-            const extractAWSSignature = (url: string) => {
-              try {
+      try {
+        const { default: Hls } = await import("hls.js");
+
+        if (Hls.isSupported()) {
+          // Извлекаем параметры подписи AWS из исходного URL
+          const extractAWSSignature = (url: string) => {
+            try {
+              const urlObj = new URL(url);
+              const params = urlObj.searchParams;
+
+              const signature: Record<string, string> = {};
+
+              // Извлекаем все AWS параметры
+              const awsParams = [
+                "X-Amz-Algorithm",
+                "X-Amz-Credential",
+                "X-Amz-Date",
+                "X-Amz-Expires",
+                "X-Amz-SignedHeaders",
+                "X-Amz-Signature",
+              ];
+
+              awsParams.forEach((param) => {
+                const value = params.get(param);
+                if (value) {
+                  signature[param] = value;
+                }
+              });
+
+              return signature;
+            } catch (error) {
+              console.error("Failed to extract AWS signature:", error);
+              return {};
+            }
+          };
+
+          const awsSignature = extractAWSSignature(hlsUrl);
+          console.log("Extracted AWS signature:", awsSignature);
+
+          // Прогрессивные таймауты - увеличиваем с каждой попыткой
+          const baseTimeout = 30000 + retryCount * 15000; // 30s, 45s, 60s, 75s, 90s
+          const maxRetries = Math.max(3, 6 - retryCount); // Уменьшаем количество retry с каждой попыткой
+
+          const hls = new Hls({
+            debug: retryCount > 2, // Включаем debug после 3 попыток
+            enableWorker: true,
+            lowLatencyMode: false,
+            // Прогрессивные таймауты
+            manifestLoadingTimeOut: baseTimeout,
+            manifestLoadingMaxRetry: maxRetries,
+            manifestLoadingRetryDelay: 2000 + retryCount * 1000,
+            levelLoadingTimeOut: baseTimeout,
+            levelLoadingMaxRetry: maxRetries,
+            levelLoadingRetryDelay: 2000 + retryCount * 1000,
+            fragLoadingTimeOut: baseTimeout + 10000,
+            fragLoadingMaxRetry: maxRetries,
+            fragLoadingRetryDelay: 1500 + retryCount * 500,
+            xhrSetup: (xhr, url) => {
+              console.log(
+                `XHR Setup for URL (attempt ${retryCount + 1}):`,
+                url
+              );
+
+              // Создаем новый XMLHttpRequest чтобы полностью обойти axios
+              const cleanXhr = new XMLHttpRequest();
+
+              // Копируем основные свойства
+              Object.defineProperty(xhr, "readyState", {
+                get: () => cleanXhr.readyState,
+              });
+              Object.defineProperty(xhr, "response", {
+                get: () => cleanXhr.response,
+              });
+              Object.defineProperty(xhr, "responseText", {
+                get: () => cleanXhr.responseText,
+              });
+              Object.defineProperty(xhr, "status", {
+                get: () => cleanXhr.status,
+              });
+              Object.defineProperty(xhr, "statusText", {
+                get: () => cleanXhr.statusText,
+              });
+
+              // Копируем методы
+              xhr.open = cleanXhr.open.bind(cleanXhr);
+              xhr.send = cleanXhr.send.bind(cleanXhr);
+              xhr.abort = cleanXhr.abort.bind(cleanXhr);
+              xhr.setRequestHeader = cleanXhr.setRequestHeader.bind(cleanXhr);
+              xhr.getResponseHeader = cleanXhr.getResponseHeader.bind(cleanXhr);
+              xhr.getAllResponseHeaders =
+                cleanXhr.getAllResponseHeaders.bind(cleanXhr);
+
+              // Копируем обработчики событий
+              cleanXhr.onreadystatechange = xhr.onreadystatechange;
+              cleanXhr.onload = xhr.onload;
+              cleanXhr.onerror = xhr.onerror;
+              cleanXhr.onprogress = xhr.onprogress;
+              cleanXhr.onabort = xhr.onabort;
+              cleanXhr.ontimeout = xhr.ontimeout;
+
+              // Если это .ts сегмент, добавляем подпись AWS
+              if (url.includes(".ts") && Object.keys(awsSignature).length > 0) {
                 const urlObj = new URL(url);
-                const params = urlObj.searchParams;
 
-                const signature: Record<string, string> = {};
-
-                // Извлекаем все AWS параметры
-                const awsParams = [
-                  "X-Amz-Algorithm",
-                  "X-Amz-Credential",
-                  "X-Amz-Date",
-                  "X-Amz-Expires",
-                  "X-Amz-SignedHeaders",
-                  "X-Amz-Signature",
-                ];
-
-                awsParams.forEach((param) => {
-                  const value = params.get(param);
-                  if (value) {
-                    signature[param] = value;
-                  }
+                // Добавляем параметры подписи
+                Object.entries(awsSignature).forEach(([key, value]) => {
+                  urlObj.searchParams.set(key, value);
                 });
 
-                return signature;
-              } catch (error) {
-                console.error("Failed to extract AWS signature:", error);
-                return {};
+                const signedUrl = urlObj.toString();
+                console.log("Signing .ts URL:", url, "→", signedUrl);
+
+                // Открываем запрос с подписанным URL
+                cleanXhr.open("GET", signedUrl, true);
+                return; // Важно! Возвращаемся, чтобы не выполнился стандартный open()
               }
-            };
 
-            const awsSignature = extractAWSSignature(hlsUrl);
-            console.log("Extracted AWS signature:", awsSignature);
+              console.log("Using clean XHR for:", url);
+            },
+          });
 
-            const hls = new Hls({
-              debug: false,
-              enableWorker: true,
-              lowLatencyMode: false,
-              xhrSetup: (xhr, url) => {
-                // Если сегмент .ts — подписываем
-                if (
-                  url.includes(".ts") &&
-                  Object.keys(awsSignature).length > 0
-                ) {
-                  const originalUrl = new URL(url);
+          hlsRef.current = hls;
 
-                  // Добавим подпись
-                  Object.entries(awsSignature).forEach(([key, value]) => {
-                    originalUrl.searchParams.set(key, value);
-                  });
+          hls.loadSource(hlsUrl);
+          hls.attachMedia(video);
 
-                  const signedUrl = originalUrl.toString();
-                  console.log("🔒 Подписанный .ts сегмент:", signedUrl);
-
-                  // Хак: переопределяем open/send чтобы изменить URL перед отправкой
-                  const originalOpen = xhr.open.bind(xhr);
-
-                  xhr.open = function (...args: any[]) {
-                    args[1] = signedUrl; // Заменяем URL
-                    return originalOpen(...args);
-                  };
-                }
-              },
-            });
-
-            hlsRef.current = hls;
-
-            hls.loadSource(hlsUrl);
-            hls.attachMedia(video);
-
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              console.log("HLS manifest parsed successfully");
-              setIsLoading(false);
-            });
-
-            hls.on(Hls.Events.ERROR, (event, data) => {
-              console.error("HLS error:", data);
-              if (data.fatal) {
-                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                  setError(
-                    "Ошибка сети. Проблема с CORS настройками сервера. Обратитесь к администратору."
-                  );
-                } else {
-                  setError(`Ошибка HLS: ${data.type}`);
-                }
-                setIsLoading(false);
-              }
-            });
-
-            hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-              console.log("HLS media attached");
-            });
-          } else {
-            console.error("HLS is not supported");
-            setError("HLS не поддерживается в этом браузере");
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            console.log(
+              `HLS manifest parsed successfully (attempt ${retryCount + 1})`
+            );
             setIsLoading(false);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to load hls.js:", error);
-          setError("Не удалось загрузить HLS плеер");
+            retryCountRef.current = 0; // Сбрасываем счетчик при успехе
+          });
+
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error(`HLS error (attempt ${retryCount + 1}):`, data);
+
+            if (data.fatal) {
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                console.log("Network error, checking if should retry...");
+
+                if (retryCount < 5) {
+                  console.log(`Retrying in ${2000 * (retryCount + 1)}ms...`);
+                  setTimeout(() => {
+                    createHLSPlayer(retryCount + 1);
+                  }, 2000 * (retryCount + 1));
+                  return;
+                }
+
+                setError(
+                  "Не удалось загрузить видео из-за проблем с сетью. Проверьте подключение к интернету."
+                );
+              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                console.log("Media error, attempting recovery...");
+                try {
+                  hls.recoverMediaError();
+                  return;
+                } catch (e) {
+                  console.error("Failed to recover from media error:", e);
+                }
+              } else {
+                setError(`Ошибка HLS: ${data.type}`);
+              }
+              setIsLoading(false);
+            } else {
+              // Не фатальные ошибки - просто логируем
+              console.warn("Non-fatal HLS error:", data);
+            }
+          });
+
+          hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+            console.log(`HLS media attached (attempt ${retryCount + 1})`);
+          });
+        } else {
+          console.error("HLS is not supported");
+          setError("HLS не поддерживается в этом браузере");
           setIsLoading(false);
-        });
+        }
+      } catch (error) {
+        console.error("Failed to load hls.js:", error);
+        setError("Не удалось загрузить HLS плеер");
+        setIsLoading(false);
+      }
     }
+  };
+
+  // Инициализация HLS
+  useEffect(() => {
+    createHLSPlayer(0);
 
     return () => {
       if (hlsRef.current) {
@@ -199,9 +313,7 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
     const handleWaiting = () => setIsLoading(true);
     const handleCanPlay = () => setIsLoading(false);
     const handleError = () => {
-      setError(
-        "Ошибка воспроизведения видео. Возможно, проблема с CORS настройками."
-      );
+      setError("Ошибка воспроизведения видео.");
       setIsLoading(false);
     };
 
@@ -266,17 +378,32 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
     }
   };
 
+  const handleRetry = () => {
+    createHLSPlayer(0);
+  };
+
   if (error) {
     return (
       <div className="aspect-video bg-slate-900 rounded-lg flex items-center justify-center">
         <div className="text-center text-white max-w-md px-4">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
           <h3 className="text-xl font-semibold mb-2">Ошибка загрузки</h3>
-          <p className="text-slate-300 text-sm leading-relaxed">{error}</p>
-          <div className="mt-4 p-3 bg-yellow-900/30 rounded-lg text-yellow-200 text-xs">
-            <strong>Решение:</strong> Администратору нужно настроить CORS для
-            DigitalOcean Spaces, разрешив запросы с домена localhost:3000 и
-            продакшн домена.
+          <p className="text-slate-300 text-sm leading-relaxed mb-4">{error}</p>
+          <div className="flex gap-3">
+            <Button
+              onClick={handleRetry}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Попробовать снова
+            </Button>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="bg-transparent border-white text-white hover:bg-white/10"
+            >
+              Перезагрузить страницу
+            </Button>
           </div>
         </div>
       </div>
@@ -301,7 +428,12 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <div className="text-center text-white">
               <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin" />
-              <p>Загрузка видео...</p>
+              <p className="mb-2">{loadingMessage}</p>
+              {retryCountRef.current > 0 && (
+                <p className="text-sm text-slate-300">
+                  Медленное соединение. Пожалуйста, подождите...
+                </p>
+              )}
             </div>
           </div>
         )}
