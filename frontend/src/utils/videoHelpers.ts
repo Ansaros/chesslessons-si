@@ -1,11 +1,28 @@
+
 import type { VideoPreview } from "@/types/video";
 
 // Форматирование времени в MM:SS
 export const formatDuration = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return "0:00";
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
+
+// Форматирование даты
+export const formatDate = (dateString: string): string => {
+  if (!dateString) return "N/A";
+  try {
+    return new Date(dateString).toLocaleDateString("ru-RU", {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch {
+    return "Invalid Date";
+  }
+};
+
 
 // Получение цвета бейджа в зависимости от типа доступа
 export const getAccessBadgeColor = (accessLevel: number) => {
@@ -42,10 +59,10 @@ export const formatPrice = (
 ): string | null => {
   if (accessLevel === 0) return null;
 
-  const numPrice = Number.parseInt(price);
-  if (isNaN(numPrice) || numPrice === 0) return null;
+  const numPrice = Number(price);
+  if (isNaN(numPrice) || numPrice <= 0) return null;
 
-  return `${numPrice.toLocaleString()} ₸`;
+  return `${numPrice.toLocaleString("ru-RU")} ₸`;
 };
 
 // Проверка доступа пользователя к видео
@@ -72,12 +89,13 @@ export const canUserWatch = (
 
 // Получение атрибута по типу
 export const getAttributeByType = (
-  video: VideoPreview,
+  video: VideoPreview | { attributes: { type: string, value: string }[] },
   type: string
 ): string | null => {
   const attribute = video.attributes.find((attr) => attr.type === type);
   return attribute?.value || null;
 };
+
 
 // Получение всех категорий из списка видео
 export const getUniqueCategories = (videos: VideoPreview[]): string[] => {

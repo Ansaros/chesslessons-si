@@ -157,7 +157,7 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div>
+                <div className="grid gap-3">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
@@ -171,7 +171,7 @@ export default function ProfilePage() {
                   </p>
                 </div>
 
-                <div>
+                <div className="grid gap-3">
                   <Label htmlFor="currentLevel">Текущий уровень</Label>
                   <Input
                     id="currentLevel"
@@ -181,7 +181,7 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                <div>
+                <div className="grid gap-3"> 
                   <Label htmlFor="newLevel">Изменить уровень</Label>
                   <Select
                     value={selectedLevel}
@@ -242,7 +242,7 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div>
+                <div className="grid gap-3">
                   <Label htmlFor="newPassword">Новый пароль</Label>
                   <div className="relative">
                     <Input
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div>
+                <div className="grid gap-3">
                   <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
                   <div className="relative">
                     <Input

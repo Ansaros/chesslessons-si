@@ -36,10 +36,10 @@ export default function LoginPage() {
     try {
       await login(formData.email, formData.password);
 
-      if (formData.email === "admin@chessmaster.com") {
+      if (formData.email === "admin@chess.com") {
         window.location.href = "/admin";
       } else {
-        window.location.href = "/profile";
+        window.location.href = "/videos";
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -85,7 +85,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div>
+              <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -100,7 +100,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div>
+              <div className="grid gap-3">
                 <Label htmlFor="password">Пароль</Label>
                 <div className="relative">
                   <Input

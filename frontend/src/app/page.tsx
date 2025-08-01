@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -12,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Play, Users, Trophy, BookOpen, Zap } from "lucide-react";
 import { Header } from "@/components/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 const categories = [
   {
@@ -79,6 +81,17 @@ const featuredVideos = [
 ];
 
 export default function HomePage() {
+  const { isAuthenticated, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -114,9 +127,15 @@ export default function HomePage() {
                 Начать обучение
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/register">Регистрация</Link>
-            </Button>
+            {isAuthenticated ? (
+              <Button asChild variant="outline" size="lg">
+                <Link href="/profile">Перейти в профиль</Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" size="lg">
+                <Link href="/register">Регистрация</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -246,18 +265,53 @@ export default function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Аккаунт</h4>
               <ul className="space-y-2 text-slate-300">
-                <li>
-                  <Link href="/profile">Профиль</Link>
-                </li>
-                <li>
-                  <Link href="/purchases">Покупки</Link>
-                </li>
-                <li>
-                  <Link href="/login">Войти</Link>
-                </li>
-                <li>
-                  <Link href="/register">Регистрация</Link>
-                </li>
+                {isAuthenticated ? (
+                  <>
+                    <li>
+                      <Link
+                        href="/profile"
+                        className="hover:text-white transition-colors"
+                      >
+                        Профиль
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/purchases"
+                        className="hover:text-white transition-colors"
+                      >
+                        Покупки
+                      </Link>
+                    </li>
+                    <li>
+                      <button
+                        onClick={handleLogout}
+                        className="hover:text-white transition-colors text-left w-full"
+                      >
+                        Выйти
+                      </button>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      <Link
+                        href="/login"
+                        className="hover:text-white transition-colors"
+                      >
+                        Войти
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/register"
+                        className="hover:text-white transition-colors"
+                      >
+                        Регистрация
+                      </Link>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
             <div>

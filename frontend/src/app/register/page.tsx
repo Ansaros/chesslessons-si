@@ -108,7 +108,7 @@ export default function RegisterPage() {
               )}
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="grid gap-3">
                   <Label htmlFor="firstName">Имя</Label>
                   <Input
                     id="firstName"
@@ -121,7 +121,7 @@ export default function RegisterPage() {
                     disabled={isLoading}
                   />
                 </div>
-                <div>
+                <div className="grid gap-3">
                   <Label htmlFor="lastName">Фамилия</Label>
                   <Input
                     id="lastName"
@@ -136,7 +136,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -151,7 +151,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div>
+              <div className="grid gap-3">
                 <Label htmlFor="password">Пароль</Label>
                 <div className="relative">
                   <Input
@@ -182,7 +182,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="grid gap-3">
                 <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
                 <div className="relative">
                   <Input
@@ -216,7 +216,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="grid gap-3">
                 <Label htmlFor="skillLevel">Ваш уровень игры</Label>
                 <Select
                   value={formData.skillLevel}
@@ -255,15 +255,15 @@ export default function RegisterPage() {
                   }
                   disabled={isLoading}
                 />
-                <Label htmlFor="terms" className="text-sm">
-                  Я согласен с{" "}
+                <Label htmlFor="terms" className="text-sm flex flex-wrap items-center gap-1">
+                  Я согласен с
                   <Link
                     href="/terms"
                     className="text-amber-600 hover:text-amber-700"
                   >
                     условиями использования
-                  </Link>{" "}
-                  и{" "}
+                  </Link>
+                  и
                   <Link
                     href="/privacy"
                     className="text-amber-600 hover:text-amber-700"
