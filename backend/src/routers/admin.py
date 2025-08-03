@@ -70,7 +70,7 @@ async def delete_video(
     сurrent_user: UserTable = Depends(get_admin_user),
     video_service: VideoService = Depends(get_video_service),
 ):
-    await video_service.delete_video(db, video_id)
+    await video_service.delete_video(video_id, db)
     return StatusResponse(message="Video deleted successfully")
 
 
