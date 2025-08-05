@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, use } from "react";
@@ -26,6 +27,15 @@ export default function VideoPage({
   const { isAuthenticated } = useAuth();
   const { video, isLoading, canWatch } = useVideo(resolvedParams.id);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+
+  const handlePurchase = () => {
+    if (!video) return;
+    if (video.access_level === 1) {
+      window.location.href = `/payment?video=${video.id}`;
+    } else {
+      setShowPurchaseModal(true);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -67,7 +77,11 @@ export default function VideoPage({
           {/* Video Player */}
           <div className="mb-6">
             {canWatch ? (
-              <HLSPlayer hlsUrl={video.hls_url} poster={video.preview_url} />
+              <HLSPlayer
+                hlsUrl={video.hls_url}
+                poster={video.preview_url}
+                hlsSegments={video.hls_segments}
+              />
             ) : (
               <div className="aspect-video bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg flex items-center justify-center">
                 <div className="text-center text-white">
@@ -89,7 +103,7 @@ export default function VideoPage({
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => setShowPurchaseModal(true)}
+                      onClick={handlePurchase}
                       className="bg-amber-600 hover:bg-amber-700 text-lg px-8 py-3"
                     >
                       {price ? `Купить за ${price}` : "Получить доступ"}
@@ -135,7 +149,7 @@ export default function VideoPage({
                 </div>
                 {!canWatch && price && (
                   <Button
-                    onClick={() => setShowPurchaseModal(true)}
+                    onClick={handlePurchase}
                     className="bg-amber-600 hover:bg-amber-700 text-lg px-6 py-3"
                   >
                     Купить за {price}
@@ -165,25 +179,25 @@ export default function VideoPage({
         </div>
       </div>
 
-      {/* Purchase Modal */}
-      {showPurchaseModal && (
+      {/* Purchase Modal for Subscription */}
+      {showPurchaseModal && video.access_level === 2 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
             <h3 className="text-2xl font-bold text-slate-800 mb-4">
-              Приобрести доступ
+              Требуется подписка
             </h3>
             <p className="text-slate-600 mb-6 leading-relaxed">
-              Получите доступ к видео <strong>"{video.title}"</strong>
-              {price && ` за ${price}`}
+              Для просмотра видео &quot;{video.title}&quot; требуется активная
+              подписка.
             </p>
             <div className="flex gap-3">
               <Button
                 className="flex-1 bg-amber-600 hover:bg-amber-700 py-3"
                 onClick={() => {
-                  window.location.href = `/payment?video=${video.id}`;
+                  window.location.href = `/subscription`;
                 }}
               >
-                {video.access_level === 1 ? "Купить" : "Оформить подписку"}
+                К планам подписки
               </Button>
               <Button
                 variant="outline"

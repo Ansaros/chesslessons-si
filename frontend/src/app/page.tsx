@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Users, Trophy, BookOpen, Zap } from "lucide-react";
 import { Header } from "@/components/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import Image from "next/image";
 
 const categories = [
   {
@@ -101,9 +102,11 @@ export default function HomePage() {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center">
           <div className="text-center mb-8">
-            <img
+            <Image
               src="/images/chess-logo.jpg"
               alt="Chester Chess Club"
+              width={96}
+              height={96}
               className="w-24 h-24 rounded-full object-cover mx-auto mb-4 shadow-lg"
             />
           </div>
@@ -188,9 +191,11 @@ export default function HomePage() {
                 className="overflow-hidden hover:shadow-lg transition-shadow"
               >
                 <div className="relative">
-                  <img
+                  <Image
                     src={video.thumbnail || "/placeholder.svg"}
                     alt={video.title}
+                    width={300}
+                    height={192}
                     className="w-full h-48 object-cover"
                   />
                   <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm">

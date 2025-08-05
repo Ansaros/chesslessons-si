@@ -1,7 +1,9 @@
+
 import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -9,7 +11,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Chester Chess Club - Школа Шахмат",
   description:
-    "Профессиональные видеоуроки шахмат от гроссмейстеров и международных мастеров",
+    "Профессиональные видеоуроки от гроссмейстеров и международных мастеров",
 };
 
 export default function RootLayout({
@@ -20,7 +22,10 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <Toaster richColors />
+        </AuthProvider>
       </body>
     </html>
   );

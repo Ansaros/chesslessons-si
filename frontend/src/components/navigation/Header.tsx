@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -12,6 +13,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -34,8 +36,15 @@ import {
   Play,
   Info,
   Heart,
+  Settings,
+  HelpCircle,
+  Mail,
+  FileText,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+import Image from "next/image";
 
 interface HeaderProps {
   currentPage?: string;
@@ -73,51 +82,27 @@ const accountLinks = [
   { name: "Покупки", href: "/purchases", icon: Play },
 ];
 
-const supportLinks = [
-  { name: "Помощь", href: "/help" },
-  { name: "Контакты", href: "/contact" },
-  { name: "Условия использования", href: "/terms" },
-  { name: "Конфиденциальность", href: "/privacy" },
+const aboutLinks = [
+  { name: "О школе", href: "/about", icon: Info },
+  { name: "Наши тренеры", href: "/trainers", icon: Users },
 ];
 
-const aboutLinks = [
-  { name: "О школе", href: "/about" },
-  { name: "Наши тренеры", href: "/trainers" },
-  { name: "Отзывы", href: "/reviews" },
-  { name: "Блог", href: "/blog" },
+const supportLinks = [
+  { name: "Помощь", href: "/help", icon: HelpCircle },
+  { name: "Контакты", href: "/contact", icon: Mail },
+  { name: "Условия", href: "/terms", icon: FileText },
+  { name: "Конфиденциальность", href: "/privacy", icon: Shield },
 ];
 
 export function Header({ currentPage }: HeaderProps) {
   const { isAuthenticated, logout } = useAuth();
+  const { profile } = useProfile();
+  const isAdmin = profile?.email === "admin@chess.com";
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLearningOpen, setIsLearningOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-
-  // Функция для управления состоянием коллапсов
-  const handleLearningToggle = (isOpen: boolean) => {
-    setIsLearningOpen(isOpen);
-    if (isOpen) {
-      setIsSupportOpen(false);
-      setIsAboutOpen(false);
-    }
-  };
-
-  const handleSupportToggle = (isOpen: boolean) => {
-    setIsSupportOpen(isOpen);
-    if (isOpen) {
-      setIsLearningOpen(false);
-      setIsAboutOpen(false);
-    }
-  };
-
-  const handleAboutToggle = (isOpen: boolean) => {
-    setIsAboutOpen(isOpen);
-    if (isOpen) {
-      setIsLearningOpen(false);
-      setIsSupportOpen(false);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -128,6 +113,8 @@ export function Header({ currentPage }: HeaderProps) {
     }
   };
 
+  const closeSheet = () => setIsMobileMenuOpen(false);
+
   return (
     <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4">
@@ -137,9 +124,11 @@ export function Header({ currentPage }: HeaderProps) {
             href="/"
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
           >
-            <img
+            <Image
               src="/images/chess-logo.jpg"
               alt="Chester Chess Club"
+              width={40}
+              height={40}
               className="w-10 h-10 rounded-full object-cover"
             />
             <div className="hidden sm:block">
@@ -230,7 +219,10 @@ export function Header({ currentPage }: HeaderProps) {
                 {aboutLinks.map((link) => (
                   <DropdownMenuItem key={link.name} asChild>
                     <Link href={link.href} className="cursor-pointer">
-                      {link.name}
+                      <div className="flex items-center gap-2">
+                        <link.icon className="w-4 h-4 text-muted-foreground" />
+                        {link.name}
+                      </div>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -248,11 +240,14 @@ export function Header({ currentPage }: HeaderProps) {
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48">
+              <DropdownMenuContent className="w-56">
                 {supportLinks.map((link) => (
                   <DropdownMenuItem key={link.name} asChild>
                     <Link href={link.href} className="cursor-pointer">
-                      {link.name}
+                      <div className="flex items-center gap-2">
+                        <link.icon className="w-4 h-4 text-muted-foreground" />
+                        {link.name}
+                      </div>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -277,6 +272,17 @@ export function Header({ currentPage }: HeaderProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-48">
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/admin"
+                          className="flex items-center space-x-2 cursor-pointer"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>Админ панель</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {accountLinks.map((link) => {
                       const IconComponent = link.icon;
                       return (
@@ -321,90 +327,50 @@ export function Header({ currentPage }: HeaderProps) {
                   <Menu className="w-6 h-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-80 overflow-y-auto">
-                <SheetHeader>
+              <SheetContent
+                side="right"
+                className="w-full max-w-sm flex flex-col p-0"
+              >
+                <SheetHeader className="p-6 pb-4">
                   <SheetTitle className="flex items-center space-x-2">
-                    <img
+                    <Image
                       src="/images/chess-logo.jpg"
                       alt="Chester Chess Club"
+                      width={32}
+                      height={32}
                       className="w-8 h-8 rounded-full object-cover"
                     />
                     <span>Chester Chess Club</span>
                   </SheetTitle>
                 </SheetHeader>
 
-                <div className="mt-8 space-y-6">
-                  {/* Auth Section */}
-                  {isAuthenticated ? (
-                    <div className="space-y-4">
-                      <div className="pb-4 border-b">
-                        <p className="text-sm text-slate-600 mb-3">
-                          Мой аккаунт
-                        </p>
-                        <div className="space-y-2">
-                          {accountLinks.map((link) => {
-                            const IconComponent = link.icon;
-                            return (
-                              <Link
-                                key={link.name}
-                                href={link.href}
-                                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                <IconComponent className="w-5 h-5 text-slate-600" />
-                                <span>{link.name}</span>
-                              </Link>
-                            );
-                          })}
-                          <button
-                            onClick={() => {
-                              handleLogout();
-                              setIsMobileMenuOpen(false);
-                            }}
-                            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-red-50 transition-colors text-red-600 w-full text-left"
-                          >
-                            <LogOut className="w-5 h-5" />
-                            <span>Выйти</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 pb-4 border-b">
-                      <Button
-                        asChild
-                        className="w-full bg-amber-600 hover:bg-amber-700"
-                      >
-                        <Link
-                          href="/register"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          Регистрация
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        asChild
-                        className="w-full bg-transparent"
-                      >
-                        <Link
-                          href="/login"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          Войти
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
+                <div className="flex-1 overflow-y-auto px-6">
+                  <nav className="flex flex-col gap-2">
+                    {/* Main Links */}
+                    <Link
+                      href="/videos"
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-amber-50 transition-colors"
+                      onClick={closeSheet}
+                    >
+                      <Play className="w-5 h-5 text-slate-600" />
+                      <span>Все видеоуроки</span>
+                    </Link>
+                    <Link
+                      href="/subscription"
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-amber-50 transition-colors"
+                      onClick={closeSheet}
+                    >
+                      <Heart className="w-5 h-5 text-slate-600" />
+                      <span>Подписка</span>
+                    </Link>
 
-                  {/* Обучение - Collapsible */}
-                  <div className="space-y-2">
+                    {/* Learning Collapsible */}
                     <Collapsible
                       open={isLearningOpen}
-                      onOpenChange={handleLearningToggle}
+                      onOpenChange={setIsLearningOpen}
                     >
-                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-slate-100 transition-colors">
-                        <div className="flex items-center space-x-3">
+                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-amber-50 transition-colors">
+                        <div className="flex items-center gap-3">
                           <BookOpen className="w-5 h-5 text-slate-600" />
                           <span className="font-medium">Обучение</span>
                         </div>
@@ -414,57 +380,59 @@ export function Header({ currentPage }: HeaderProps) {
                           }`}
                         />
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-1 ml-8 mt-2">
-                        {categories.map((category) => {
-                          const IconComponent = category.icon;
-                          return (
-                            <Link
-                              key={category.name}
-                              href={category.href}
-                              className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                              onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                              <div className="w-6 h-6 bg-amber-100 rounded-md flex items-center justify-center">
-                                <IconComponent className="w-3 h-3 text-amber-600" />
-                              </div>
-                              <span className="text-sm">{category.name}</span>
-                            </Link>
-                          );
-                        })}
-                        <Link
-                          href="/videos"
-                          className="flex items-center justify-center space-x-2 p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors mt-2"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <Play className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            Все видеоуроки
-                          </span>
-                        </Link>
+                      <CollapsibleContent className="space-y-1 ml-6 mt-2 border-l-2 border-slate-100 pl-5">
+                        {categories.map((category) => (
+                          <Link
+                            key={category.name}
+                            href={category.href}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                            onClick={closeSheet}
+                          >
+                            <category.icon className="w-4 h-4 text-slate-500" />
+                            <span className="text-sm">{category.name}</span>
+                          </Link>
+                        ))}
                       </CollapsibleContent>
                     </Collapsible>
-                  </div>
 
-                  {/* Подписка */}
-                  <div className="space-y-2">
-                    <Link
-                      href="/subscription"
-                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-100 transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                    {/* Support Collapsible */}
+                    <Collapsible
+                      open={isSupportOpen}
+                      onOpenChange={setIsSupportOpen}
                     >
-                      <Heart className="w-5 h-5 text-slate-600" />
-                      <span className="font-medium">Подписка</span>
-                    </Link>
-                  </div>
+                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-amber-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <HelpCircle className="w-5 h-5 text-slate-600" />
+                          <span className="font-medium">Поддержка</span>
+                        </div>
+                        <ChevronRight
+                          className={`w-4 h-4 transition-transform ${
+                            isSupportOpen ? "rotate-90" : ""
+                          }`}
+                        />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-1 ml-6 mt-2 border-l-2 border-slate-100 pl-5">
+                        {supportLinks.map((link) => (
+                          <Link
+                            key={link.name}
+                            href={link.href}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                            onClick={closeSheet}
+                          >
+                            <link.icon className="w-4 h-4 text-slate-500" />
+                            <span className="text-sm">{link.name}</span>
+                          </Link>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
 
-                  {/* О нас - Collapsible */}
-                  <div className="space-y-2">
+                    {/* About Us Collapsible */}
                     <Collapsible
                       open={isAboutOpen}
-                      onOpenChange={handleAboutToggle}
+                      onOpenChange={setIsAboutOpen}
                     >
-                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-slate-100 transition-colors">
-                        <div className="flex items-center space-x-3">
+                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-amber-50 transition-colors">
+                        <div className="flex items-center gap-3">
                           <Info className="w-5 h-5 text-slate-600" />
                           <span className="font-medium">О нас</span>
                         </div>
@@ -474,53 +442,82 @@ export function Header({ currentPage }: HeaderProps) {
                           }`}
                         />
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-1 ml-8 mt-2">
+                      <CollapsibleContent className="space-y-1 ml-6 mt-2 border-l-2 border-slate-100 pl-5">
                         {aboutLinks.map((link) => (
                           <Link
                             key={link.name}
                             href={link.href}
-                            className="block p-2 rounded-lg hover:bg-slate-100 transition-colors text-sm"
-                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                            onClick={closeSheet}
                           >
-                            {link.name}
+                            <link.icon className="w-4 h-4 text-slate-500" />
+                            <span className="text-sm">{link.name}</span>
                           </Link>
                         ))}
                       </CollapsibleContent>
                     </Collapsible>
-                  </div>
-
-                  {/* Поддержка - Collapsible */}
-                  <div className="space-y-2">
-                    <Collapsible
-                      open={isSupportOpen}
-                      onOpenChange={handleSupportToggle}
-                    >
-                      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-slate-100 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <Users className="w-5 h-5 text-slate-600" />
-                          <span className="font-medium">Поддержка</span>
-                        </div>
-                        <ChevronRight
-                          className={`w-4 h-4 transition-transform ${
-                            isSupportOpen ? "rotate-90" : ""
-                          }`}
-                        />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-1 ml-8 mt-2">
-                        {supportLinks.map((link) => (
-                          <Link
-                            key={link.name}
-                            href={link.href}
-                            className="block p-2 rounded-lg hover:bg-slate-100 transition-colors text-sm"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                          >
-                            {link.name}
-                          </Link>
-                        ))}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </div>
+                  </nav>
                 </div>
+
+                <SheetFooter className="p-6 border-t bg-slate-50">
+                  {isAuthenticated ? (
+                    <div className="w-full space-y-4">
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{profile?.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Добро пожаловать!
+                        </p>
+                      </div>
+                      <div
+                        className={`grid ${
+                          isAdmin ? "grid-cols-2" : "grid-cols-1"
+                        } gap-3`}
+                      >
+                        <Button variant="outline" asChild className="w-full">
+                          <Link href="/profile" onClick={closeSheet}>
+                            <User className="w-4 h-4 mr-2" />
+                            Профиль
+                          </Link>
+                        </Button>
+                        {isAdmin && (
+                          <Button variant="outline" asChild className="w-full">
+                            <Link href="/admin" onClick={closeSheet}>
+                              <Settings className="w-4 h-4 mr-2" />
+                              Админ
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => {
+                          handleLogout();
+                          closeSheet();
+                        }}
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Выйти
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                      <Button variant="outline" asChild className="w-full">
+                        <Link href="/login" onClick={closeSheet}>
+                          Войти
+                        </Link>
+                      </Button>
+                      <Button
+                        asChild
+                        className="w-full bg-amber-600 hover:bg-amber-700"
+                      >
+                        <Link href="/register" onClick={closeSheet}>
+                          Регистрация
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </SheetFooter>
               </SheetContent>
             </Sheet>
           </div>

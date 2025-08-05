@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,39 +24,12 @@ import {
   Shield,
   CheckCircle,
   Lock,
+  Loader2,
 } from "lucide-react";
 import { Header } from "@/components/navigation";
-
-// Mock video data
-const videoData = {
-  1: {
-    id: 1,
-    title: "Сицилианская защита: Вариант Найдорфа",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    price: 2500,
-    category: "Дебюты",
-    instructor: "ГМ Иванов А.С.",
-    duration: "15:30",
-  },
-  3: {
-    id: 3,
-    title: "Тактика: Двойной удар",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    price: 1800,
-    category: "Тактика",
-    instructor: "ГМ Сидоров В.П.",
-    duration: "12:45",
-  },
-  4: {
-    id: 4,
-    title: "Французская защита: Классический вариант",
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    price: 3000,
-    category: "Дебюты",
-    instructor: "ГМ Козлов Д.А.",
-    duration: "18:20",
-  },
-};
+import { videoService } from "@/services/video";
+import type { VideoDetail } from "@/types/video";
+import { getAttributeByType } from "@/utils/videoHelpers";
 
 const paymentMethods = [
   {
@@ -79,7 +53,10 @@ const paymentMethods = [
 ];
 
 export default function PaymentPage() {
-  const [videoId, setVideoId] = useState<number | null>(null);
+  const [video, setVideo] = useState<VideoDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [selectedMethod, setSelectedMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -93,15 +70,37 @@ export default function PaymentPage() {
   });
 
   useEffect(() => {
-    // Get video ID from URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get("video");
-    if (id) {
-      setVideoId(Number.parseInt(id));
-    }
+    const fetchVideo = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get("video");
+      if (id) {
+        try {
+          const videoData = await videoService.getVideoById(id);
+          // Only allow payment for one-time purchase videos
+          if (videoData.access_level === 1) {
+            setVideo(videoData);
+          } else {
+            setError("Это видео не доступно для покупки.");
+          }
+        } catch (err) {
+          console.error("Failed to fetch video for payment:", err);
+          setError("Не удалось загрузить информацию о видео.");
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setError("Видео не выбрано для оплаты. Проверьте правильность ссылки.");
+        setIsLoading(false);
+      }
+    };
+
+    fetchVideo();
   }, []);
 
-  const video = videoId ? videoData[videoId as keyof typeof videoData] : null;
+  const videoPrice = video ? Number(video.price) : 0;
+  const videoCategory = video ? getAttributeByType(video, "Категория") : null;
+  const vatAmount = Math.round(videoPrice * 0.12);
+  const totalPrice = videoPrice + vatAmount;
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +112,17 @@ export default function PaymentPage() {
       setIsSuccess(true);
     }, 3000);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <span className="text-lg">Загрузка информации об оплате...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (
@@ -138,7 +148,7 @@ export default function PaymentPage() {
             </div>
             <div className="flex gap-3">
               <Button className="flex-1" asChild>
-                <Link href={`/video/${videoId}`}>Смотреть видео</Link>
+                <Link href={`/video/${video?.id}`}>Смотреть видео</Link>
               </Button>
               <Button
                 variant="outline"
@@ -154,13 +164,16 @@ export default function PaymentPage() {
     );
   }
 
-  if (!video) {
+  if (error || !video) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
-            <CardTitle>Видео не найдено</CardTitle>
-            <CardDescription>Проверьте правильность ссылки</CardDescription>
+            <CardTitle>Ошибка</CardTitle>
+            <CardDescription>
+              {error ||
+                "Видео не найдено. Проверьте правильность ссылки."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
@@ -188,9 +201,11 @@ export default function PaymentPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-4">
-                    <img
-                      src={video.thumbnail || "/placeholder.svg"}
+                    <Image
+                      src={video.preview_url || "/placeholder.svg"}
                       alt={video.title}
+                      width={96}
+                      height={64}
                       className="w-24 h-16 object-cover rounded flex-shrink-0"
                     />
                     <div className="flex-1">
@@ -198,14 +213,10 @@ export default function PaymentPage() {
                         {video.title}
                       </h3>
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline">{video.category}</Badge>
-                        <span className="text-sm text-slate-600">
-                          {video.duration}
-                        </span>
+                        {videoCategory && (
+                          <Badge variant="outline">{videoCategory}</Badge>
+                        )}
                       </div>
-                      <p className="text-sm text-slate-600">
-                        {video.instructor}
-                      </p>
                     </div>
                   </div>
 
@@ -214,19 +225,19 @@ export default function PaymentPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Стоимость видео:</span>
-                      <span>{video.price.toLocaleString()} ₸</span>
+                      <span>{videoPrice.toLocaleString()} ₸</span>
                     </div>
                     <div className="flex justify-between text-sm text-slate-600">
                       <span>НДС (12%):</span>
                       <span>
-                        {Math.round(video.price * 0.12).toLocaleString()} ₸
+                        {vatAmount.toLocaleString()} ₸
                       </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-semibold text-lg">
                       <span>Итого:</span>
                       <span className="text-amber-600">
-                        {video.price.toLocaleString()} ₸
+                        {totalPrice.toLocaleString()} ₸
                       </span>
                     </div>
                   </div>
@@ -300,7 +311,7 @@ export default function PaymentPage() {
                   <form onSubmit={handlePayment} className="space-y-4">
                     {selectedMethod === "card" && (
                       <>
-                        <div>
+                        <div className="grid gap-3" >
                           <Label htmlFor="cardNumber">Номер карты</Label>
                           <Input
                             id="cardNumber"
@@ -317,7 +328,7 @@ export default function PaymentPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div>
+                          <div className="grid gap-3">
                             <Label htmlFor="expiryDate">Срок действия</Label>
                             <Input
                               id="expiryDate"
@@ -332,7 +343,7 @@ export default function PaymentPage() {
                               required
                             />
                           </div>
-                          <div>
+                          <div className="grid gap-3">
                             <Label htmlFor="cvv">CVV</Label>
                             <Input
                               id="cvv"
@@ -349,7 +360,7 @@ export default function PaymentPage() {
                           </div>
                         </div>
 
-                        <div>
+                        <div className="grid gap-3">
                           <Label htmlFor="cardHolder">
                             Имя держателя карты
                           </Label>
@@ -370,7 +381,7 @@ export default function PaymentPage() {
                     )}
 
                     {selectedMethod === "kaspi" && (
-                      <div>
+                      <div className="grid gap-3">
                         <Label htmlFor="phone">Номер телефона</Label>
                         <Input
                           id="phone"
@@ -397,7 +408,7 @@ export default function PaymentPage() {
                       </div>
                     )}
 
-                    <div>
+                    <div className="grid gap-3">
                       <Label htmlFor="email">Email для чека</Label>
                       <Input
                         id="email"
@@ -424,7 +435,7 @@ export default function PaymentPage() {
                       ) : (
                         <>
                           <Lock className="w-4 h-4 mr-2" />
-                          Оплатить {video.price.toLocaleString()} ₸
+                          Оплатить {totalPrice.toLocaleString()} ₸
                         </>
                       )}
                     </Button>

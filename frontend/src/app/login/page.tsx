@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,9 +57,11 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2">
-            <img
+            <Image
               src="/images/chess-logo.jpg"
               alt="Chester Chess Club"
+              width={64}
+              height={64}
               className="w-16 h-16 rounded-full object-cover shadow-lg"
             />
             <div className="text-left">

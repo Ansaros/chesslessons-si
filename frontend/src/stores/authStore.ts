@@ -98,6 +98,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       // Загрузка данных
       loadChessLevels: async () => {
+        if (get().chessLevels.length > 0) {
+          return;
+        }
         try {
           const levels = await attributesService.getChessLevels();
           set({ chessLevels: levels });

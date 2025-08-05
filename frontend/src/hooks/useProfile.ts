@@ -1,25 +1,29 @@
+
 "use client";
 
 import { useProfileStore } from "@/stores/profileStore";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
 export const useProfile = () => {
   const {
     profile,
-    chessLevels,
     isLoading,
     isUpdating,
     loadProfile,
-    loadChessLevels,
     updateProfile,
     updatePassword,
+    clearProfile,
   } = useProfileStore();
+  const { isAuthenticated, chessLevels } = useAuth();
 
-  // Загружаем данные при первом использовании
   useEffect(() => {
-    loadProfile();
-    loadChessLevels();
-  }, [loadProfile, loadChessLevels]);
+    if (isAuthenticated) {
+      loadProfile();
+    } else {
+      clearProfile();
+    }
+  }, [isAuthenticated, loadProfile, clearProfile]);
 
   // Находим название текущего уровня
   const currentChessLevel = chessLevels.find(

@@ -1,12 +1,15 @@
+
+// hooks/useAdmin.ts
 import { useState, useEffect, useCallback } from "react";
 import { useProfile } from "./useProfile";
-import { AdminService } from "@/services/admin/adminService";
+import { useAuth } from "./useAuth";
+import { AdminService } from "@/services/admin";
 import { attributesService } from "@/services/auth";
 import type { AdminVideo } from "@/types/admin";
 import type { AttributeType } from "@/types/auth";
 
-
 export const useAdmin = () => {
+  const { isAuthenticated } = useAuth();
   const { profile, isLoading: isProfileLoading } = useProfile();
   const [isAdmin, setIsAdmin] = useState(false);
   const [videos, setVideos] = useState<AdminVideo[]>([]);
@@ -15,54 +18,46 @@ export const useAdmin = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAttributes = useCallback(async () => {
-    if (profile?.email !== "admin@chess.com") return;
+  const fetchAllAdminData = useCallback(async () => {
     try {
-      const response = await attributesService.getAttributeTypes();
-      setAttributes(response.data);
-    } catch (err) {
-      setError((prev) =>
-        prev
-          ? `${prev}\nFailed to fetch attributes.`
-          : "Failed to fetch attributes."
-      );
-      console.error(err);
-    }
-  }, [profile]);
-
-  const fetchVideos = useCallback(async (skip = 0, limit = 100) => {
-    // Re-check admin status before fetching
-    if (profile?.email !== "admin@chess.com") {
-      setError("Unauthorized to fetch admin data.");
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await AdminService.getVideos(skip, limit);
-      setVideos(response.data);
-      setTotalVideos(response.total);
+      const [videosResponse, attributesResponse] = await Promise.all([
+        AdminService.getVideos(0, 100),
+        attributesService.getAttributeTypes(),
+      ]);
+      setVideos(videosResponse.data.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setTotalVideos(videosResponse.total);
+      setAttributes(attributesResponse.data);
       setError(null);
     } catch (err) {
-      setError("Failed to fetch videos.");
+      setError("Failed to load admin data.");
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
-  }, [profile]);
+  }, []);
 
   useEffect(() => {
-    if (!isProfileLoading) {
-      const checkAdmin = profile?.email === "admin@chess.com";
-      setIsAdmin(checkAdmin);
-      if (checkAdmin) {
-        fetchVideos();
-        fetchAttributes();
-      } else {
-        setIsLoading(false);
-      }
+    // This guard waits if we're logged in but don't have a profile object yet.
+    // This prevents the hook from deciding we're not an admin prematurely on page load.
+    if (isAuthenticated && !isProfileLoading && !profile) {
+      setIsLoading(true);
+      return;
     }
-  }, [profile, isProfileLoading, fetchAttributes, fetchVideos]);
+
+    if (isProfileLoading) {
+      setIsLoading(true);
+      return;
+    }
+
+    const checkAdmin = profile?.email === "admin@chess.com";
+    setIsAdmin(checkAdmin);
+
+    if (checkAdmin) {
+      fetchAllAdminData().finally(() => {
+        setIsLoading(false);
+      });
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, isProfileLoading, profile, fetchAllAdminData]);
 
   const handleAdminAction = useCallback(async <T,>(
     action: () => Promise<T>
@@ -70,69 +65,34 @@ export const useAdmin = () => {
     if (!isAdmin) {
       throw new Error("Access Denied: User is not an admin.");
     }
-    return action();
-  }, [isAdmin]);
+    const result = await action();
+    setIsLoading(true); // Set loading state while refreshing data
+    await fetchAllAdminData();
+    setIsLoading(false);
+    return result;
+  }, [isAdmin, fetchAllAdminData]);
 
-  const uploadVideo = useCallback(
-    async (formData: FormData) => {
-      const newVideo = await handleAdminAction(() =>
-        AdminService.uploadVideo(formData)
-      );
-      setVideos((prev) => [newVideo, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      setTotalVideos((prev) => prev + 1);
-      return newVideo;
-    },
-    [handleAdminAction]
-  );
-
-  const updateVideo = useCallback(
-    async (videoId: string, formData: FormData) => {
-      const updatedVideo = await handleAdminAction(() =>
-        AdminService.updateVideo(videoId, formData)
-      );
-      setVideos((prev) =>
-        prev.map((v) => (v.id === videoId ? updatedVideo : v))
-      );
-      return updatedVideo;
-    },
-    [handleAdminAction]
-  );
-
-  const deleteVideo = useCallback(
-    async (videoId: string) => {
-      await handleAdminAction(() => AdminService.deleteVideo(videoId));
-      setVideos((prev) => prev.filter((v) => v.id !== videoId));
-      setTotalVideos((prev) => prev - 1);
-    },
-    [handleAdminAction]
-  );
-
-  const createAttributeType = useCallback(
-    async (name: string) => {
-      return handleAdminAction(() => AdminService.createAttributeType(name));
-    },
-    [handleAdminAction]
-  );
-
-  const deleteAttributeType = useCallback(
-    async (id: string) => {
-      return handleAdminAction(() => AdminService.deleteAttributeType(id));
-    },
-    [handleAdminAction]
-  );
+  const uploadVideo = (formData: FormData) => handleAdminAction(() => AdminService.uploadVideo(formData));
+  const updateVideo = (videoId: string, formData: FormData) => handleAdminAction(() => AdminService.updateVideo(videoId, formData));
+  const deleteVideo = (videoId: string) => handleAdminAction(() => AdminService.deleteVideo(videoId));
+  const createAttributeType = (name: string) => handleAdminAction(() => AdminService.createAttributeType(name));
+  const deleteAttributeType = (id: string) => handleAdminAction(() => AdminService.deleteAttributeType(id));
+  const createAttributeValue = (value: string, type_id: string) => handleAdminAction(() => AdminService.createAttributeValue(value, type_id));
+  const deleteAttributeValue = (id:string) => handleAdminAction(() => AdminService.deleteAttributeValue(id));
 
   return {
     isAdmin,
-    isLoading: isLoading || isProfileLoading,
+    isLoading,
     error,
     videos,
     totalVideos,
     attributes,
-    fetchVideos,
     uploadVideo,
     updateVideo,
     deleteVideo,
     createAttributeType,
     deleteAttributeType,
+    createAttributeValue,
+    deleteAttributeValue,
   };
 };

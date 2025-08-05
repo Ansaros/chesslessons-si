@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -81,7 +82,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2">
-            <img
+            <Image
               src="/images/chess-logo.jpg"
               alt="Chester Chess Club"
               className="w-12 h-12 rounded-full object-cover shadow-lg"

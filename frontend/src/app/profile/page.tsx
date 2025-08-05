@@ -181,7 +181,7 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                <div className="grid gap-3"> 
+                <div className="grid gap-3">
                   <Label htmlFor="newLevel">Изменить уровень</Label>
                   <Select
                     value={selectedLevel}

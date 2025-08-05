@@ -1,88 +1,72 @@
+
 import { create } from "zustand";
 import { profileService, UserProfile } from "@/services/profile";
-import { attributesService, AttributeValue } from "@/services/auth";
 
 interface ProfileState {
   profile: UserProfile | null;
-  chessLevels: AttributeValue[];
   isLoading: boolean;
   isUpdating: boolean;
 }
 
 interface ProfileActions {
-  loadProfile: () => Promise<void>;
-  loadChessLevels: () => Promise<void>;
+  loadProfile: (force?: boolean) => Promise<void>;
   updateProfile: (chess_level_id: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setUpdating: (updating: boolean) => void;
+  clearProfile: () => void;
 }
 
 export const useProfileStore = create<ProfileState & ProfileActions>(
   (set, get) => ({
     // Состояние
     profile: null,
-    chessLevels: [],
     isLoading: false,
     isUpdating: false,
 
     // Загрузка профиля
-    loadProfile: async () => {
+    loadProfile: async (force = false) => {
+      if (!force && (get().profile || get().isLoading)) {
+        return;
+      }
       try {
         set({ isLoading: true });
         const profile = await profileService.getProfile();
         set({ profile, isLoading: false });
       } catch (error) {
         console.error("Failed to load profile:", error);
-        set({ isLoading: false });
-        throw error;
-      }
-    },
-
-    // Загрузка уровней шахмат
-    loadChessLevels: async () => {
-      try {
-        const levels = await attributesService.getChessLevels();
-        set({ chessLevels: levels });
-      } catch (error) {
-        console.error("Failed to load chess levels:", error);
+        set({ profile: null, isLoading: false });
       }
     },
 
     // Обновление профиля
     updateProfile: async (chess_level_id: string) => {
+      set({ isUpdating: true });
       try {
-        set({ isUpdating: true });
         await profileService.updateProfile(chess_level_id);
-
-        // Обновляем локальное состояние
-        const currentProfile = get().profile;
-        if (currentProfile) {
-          set({
-            profile: { ...currentProfile, chess_level_id },
-            isUpdating: false,
-          });
-        }
+        await get().loadProfile(true); // Force reload profile data to reflect changes
       } catch (error) {
-        set({ isUpdating: false });
         throw error;
+      } finally {
+        set({ isUpdating: false });
       }
     },
 
     // Смена пароля
     updatePassword: async (password: string) => {
+      set({ isUpdating: true });
       try {
-        set({ isUpdating: true });
         await profileService.updatePassword(password);
-        set({ isUpdating: false });
       } catch (error) {
-        set({ isUpdating: false });
         throw error;
+      } finally {
+        set({ isUpdating: false });
       }
     },
 
     // Управление состоянием
     setLoading: (loading: boolean) => set({ isLoading: loading }),
     setUpdating: (updating: boolean) => set({ isUpdating: updating }),
+    clearProfile: () => set({ profile: null, isLoading: false, isUpdating: false }),
   })
 );

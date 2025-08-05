@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -18,12 +20,14 @@ import { formatDuration } from "@/utils/videoHelpers";
 interface HLSPlayerProps {
   hlsUrl: string;
   poster?: string;
+  hlsSegments?: Record<string, string>; // Optional: pre-signed segment URLs
 }
 
-export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
+export function HLSPlayer({ hlsUrl, poster, hlsSegments }: HLSPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<any>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const retryCountRef = useRef(0);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -34,8 +38,24 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("Загрузка видео...");
 
-  // Функция для создания HLS плеера
-  const createHLSPlayer = async (retryCount = 0) => {
+  // Cleanup function
+  const cleanup = () => {
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+    if (hlsRef.current) {
+      try {
+        hlsRef.current.destroy();
+      } catch (e) {
+        console.warn("Error destroying HLS instance:", e);
+      }
+      hlsRef.current = null;
+    }
+  };
+
+  // Function to create HLS player
+  const createHLSPlayer = (retryCount = 0) => {
     if (!videoRef.current || !hlsUrl) return;
 
     const video = videoRef.current;
@@ -43,277 +63,221 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
     setError(null);
     retryCountRef.current = retryCount;
 
-    // Обновляем сообщение о загрузке
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+
     if (retryCount === 0) {
       setLoadingMessage("Загрузка видео...");
     } else {
-      setLoadingMessage(`Повторная попытка ${retryCount}/5...`);
+      setLoadingMessage(`Повторная попытка ${retryCount}/3...`);
     }
 
     console.log(`Loading HLS URL (attempt ${retryCount + 1}):`, hlsUrl);
 
-    // Очищаем предыдущий HLS instance
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
+    cleanup();
+
+    if (!Hls.isSupported()) {
+        setError("HLS не поддерживается в этом браузере");
+        setIsLoading(false);
+        return;
     }
 
-    // Проверяем нативную поддержку HLS (Safari)
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      console.log("Using native HLS support");
-      video.src = hlsUrl;
+    console.log("Using hls.js for HLS playback");
+    
+    const getBasePath = (url: string): string => {
+        const urlWithoutQuery = url.split('?')[0];
+        const lastSlash = urlWithoutQuery.lastIndexOf('/');
+        if (lastSlash === -1) return '';
+        return urlWithoutQuery.substring(0, lastSlash + 1);
+    };
+    const masterManifestBasePath = getBasePath(hlsUrl);
 
-      const handleLoadedMetadata = () => {
-        console.log("Native HLS: metadata loaded");
-        setIsLoading(false);
-        setDuration(video.duration);
-        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        video.removeEventListener("error", handleError);
-      };
-
-      const handleError = (e: any) => {
-        console.error("Native HLS error:", e);
-        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        video.removeEventListener("error", handleError);
-
-        if (retryCount < 5) {
-          setTimeout(
-            () => createHLSPlayer(retryCount + 1),
-            2000 * (retryCount + 1)
-          );
-        } else {
-          setError("Не удалось загрузить видео после нескольких попыток");
-          setIsLoading(false);
+    // Custom loader must be defined here to have access to Hls scope
+    class PresignedUrlLoader extends Hls.DefaultConfig.loader {
+        constructor(config: any) {
+            super(config);
         }
-      };
 
-      video.addEventListener("loadedmetadata", handleLoadedMetadata);
-      video.addEventListener("error", handleError);
-
-      // Таймаут для нативного HLS
-      setTimeout(() => {
-        if (isLoading && retryCount < 5) {
-          video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-          video.removeEventListener("error", handleError);
-          createHLSPlayer(retryCount + 1);
-        }
-      }, 30000 + retryCount * 10000); // Увеличиваем таймаут с каждой попыткой
-    } else {
-      // Для других браузеров используем hls.js
-      try {
-        const { default: Hls } = await import("hls.js");
-
-        if (Hls.isSupported()) {
-          // Извлекаем параметры подписи AWS из исходного URL
-          const extractAWSSignature = (url: string) => {
-            try {
-              const urlObj = new URL(url);
-              const params = urlObj.searchParams;
-
-              const signature: Record<string, string> = {};
-
-              // Извлекаем все AWS параметры
-              const awsParams = [
-                "X-Amz-Algorithm",
-                "X-Amz-Credential",
-                "X-Amz-Date",
-                "X-Amz-Expires",
-                "X-Amz-SignedHeaders",
-                "X-Amz-Signature",
-              ];
-
-              awsParams.forEach((param) => {
-                const value = params.get(param);
-                if (value) {
-                  signature[param] = value;
-                }
-              });
-
-              return signature;
-            } catch (error) {
-              console.error("Failed to extract AWS signature:", error);
-              return {};
+        load(context: any, config: any, callbacks: any) {
+            const originalUrl = context.url;
+            // Key based on filename only
+            const filenameKey = originalUrl.substring(originalUrl.lastIndexOf('/') + 1).split('?')[0];
+            
+            // Key based on relative path from master manifest
+            let relativePathKey = originalUrl.split('?')[0];
+            if (relativePathKey.startsWith(masterManifestBasePath)) {
+                relativePathKey = relativePathKey.substring(masterManifestBasePath.length);
             }
-          };
 
-          const awsSignature = extractAWSSignature(hlsUrl);
-          console.log("Extracted AWS signature:", awsSignature);
+            if (hlsSegments && hlsSegments[relativePathKey]) {
+                context.url = hlsSegments[relativePathKey];
+                console.log(`[PresignedUrlLoader] Using pre-signed URL for relative path key: ${relativePathKey}`);
+            } else if (hlsSegments && hlsSegments[filenameKey]) {
+                context.url = hlsSegments[filenameKey];
+                console.log(`[PresignedUrlLoader] Using pre-signed URL for filename key: ${filenameKey}`);
+            }
+            else {
+                console.warn(`[PresignedUrlLoader] No pre-signed URL found for: ${originalUrl}. Tried keys: '${relativePathKey}', '${filenameKey}'. Using original URL.`);
+            }
+            
+            super.load(context, config, callbacks);
+        }
+    }
 
-          // Прогрессивные таймауты - увеличиваем с каждой попыткой
-          const baseTimeout = 30000 + retryCount * 15000; // 30s, 45s, 60s, 75s, 90s
-          const maxRetries = Math.max(3, 6 - retryCount); // Уменьшаем количество retry с каждой попыткой
 
-          const hls = new Hls({
-            debug: retryCount > 2, // Включаем debug после 3 попыток
-            enableWorker: true,
-            lowLatencyMode: false,
-            // Прогрессивные таймауты
-            manifestLoadingTimeOut: baseTimeout,
-            manifestLoadingMaxRetry: maxRetries,
-            manifestLoadingRetryDelay: 2000 + retryCount * 1000,
-            levelLoadingTimeOut: baseTimeout,
-            levelLoadingMaxRetry: maxRetries,
-            levelLoadingRetryDelay: 2000 + retryCount * 1000,
-            fragLoadingTimeOut: baseTimeout + 10000,
-            fragLoadingMaxRetry: maxRetries,
-            fragLoadingRetryDelay: 1500 + retryCount * 500,
-            xhrSetup: (xhr, url) => {
-              console.log(
-                `XHR Setup for URL (attempt ${retryCount + 1}):`,
-                url
-              );
+    const hls = new Hls({
+        debug: retryCount > 0,
+        enableWorker: true,
+        lowLatencyMode: false,
+        manifestLoadingTimeOut: 20000,
+        manifestLoadingMaxRetry: 1,
+        manifestLoadingRetryDelay: 2000,
+        levelLoadingTimeOut: 15000,
+        levelLoadingMaxRetry: 1,
+        levelLoadingRetryDelay: 2000,
+        fragLoadingTimeOut: 30000,
+        fragLoadingMaxRetry: 2,
+        fragLoadingRetryDelay: 1000,
+        loader: PresignedUrlLoader, // Use our custom loader for all requests
+        xhrSetup: (xhr, url) => {
+        console.log('HLS.js XHR setup for URL:', url);
+        xhr.setRequestHeader('Accept', '*/*');
+        const originalOnError = xhr.onerror;
+        xhr.onerror = function(e) {
+            console.error('XHR Error for URL:', url, e);
+            if (originalOnError) originalOnError.call(this, e);
+        };
+        const originalOnTimeout = xhr.ontimeout;
+        xhr.ontimeout = function(e) {
+            console.error('XHR Timeout for URL:', url, e);
+            if (originalOnTimeout) originalOnTimeout.call(this, e);
+        };
+        },
+    });
 
-              // Создаем новый XMLHttpRequest чтобы полностью обойти axios
-              const cleanXhr = new XMLHttpRequest();
+    hlsRef.current = hls;
 
-              // Копируем основные свойства
-              Object.defineProperty(xhr, "readyState", {
-                get: () => cleanXhr.readyState,
-              });
-              Object.defineProperty(xhr, "response", {
-                get: () => cleanXhr.response,
-              });
-              Object.defineProperty(xhr, "responseText", {
-                get: () => cleanXhr.responseText,
-              });
-              Object.defineProperty(xhr, "status", {
-                get: () => cleanXhr.status,
-              });
-              Object.defineProperty(xhr, "statusText", {
-                get: () => cleanXhr.statusText,
-              });
+    hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log(`HLS manifest parsed successfully (attempt ${retryCount + 1})`, {
+        levels: data.levels.length,
+        firstLevel: data.levels[0]
+        });
+        setIsLoading(false);
+        retryCountRef.current = 0;
+        if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+        }
+    });
 
-              // Копируем методы
-              xhr.open = cleanXhr.open.bind(cleanXhr);
-              xhr.send = cleanXhr.send.bind(cleanXhr);
-              xhr.abort = cleanXhr.abort.bind(cleanXhr);
-              xhr.setRequestHeader = cleanXhr.setRequestHeader.bind(cleanXhr);
-              xhr.getResponseHeader = cleanXhr.getResponseHeader.bind(cleanXhr);
-              xhr.getAllResponseHeaders =
-                cleanXhr.getAllResponseHeaders.bind(cleanXhr);
+    hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error(`HLS error (attempt ${retryCount + 1}):`, {
+        type: data.type,
+        details: data.details,
+        fatal: data.fatal,
+        url: data.url,
+        response: data.response
+        });
 
-              // Копируем обработчики событий
-              cleanXhr.onreadystatechange = xhr.onreadystatechange;
-              cleanXhr.onload = xhr.onload;
-              cleanXhr.onerror = xhr.onerror;
-              cleanXhr.onprogress = xhr.onprogress;
-              cleanXhr.onabort = xhr.onabort;
-              cleanXhr.ontimeout = xhr.ontimeout;
+        if (data.fatal) {
+        if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+            loadingTimeoutRef.current = null;
+        }
 
-              // Если это .ts сегмент, добавляем подпись AWS
-              if (url.includes(".ts") && Object.keys(awsSignature).length > 0) {
-                const urlObj = new URL(url);
-
-                // Добавляем параметры подписи
-                Object.entries(awsSignature).forEach(([key, value]) => {
-                  urlObj.searchParams.set(key, value);
-                });
-
-                const signedUrl = urlObj.toString();
-                console.log("Signing .ts URL:", url, "→", signedUrl);
-
-                // Открываем запрос с подписанным URL
-                cleanXhr.open("GET", signedUrl, true);
-                return; // Важно! Возвращаемся, чтобы не выполнился стандартный open()
-              }
-
-              console.log("Using clean XHR for:", url);
-            },
-          });
-
-          hlsRef.current = hls;
-
-          hls.loadSource(hlsUrl);
-          hls.attachMedia(video);
-
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            console.log(
-              `HLS manifest parsed successfully (attempt ${retryCount + 1})`
-            );
-            setIsLoading(false);
-            retryCountRef.current = 0; // Сбрасываем счетчик при успехе
-          });
-
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error(`HLS error (attempt ${retryCount + 1}):`, data);
-
-            if (data.fatal) {
-              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                console.log("Network error, checking if should retry...");
-
-                if (retryCount < 5) {
-                  console.log(`Retrying in ${2000 * (retryCount + 1)}ms...`);
-                  setTimeout(() => {
-                    createHLSPlayer(retryCount + 1);
-                  }, 2000 * (retryCount + 1));
-                  return;
-                }
-
-                setError(
-                  "Не удалось загрузить видео из-за проблем с сетью. Проверьте подключение к интернету."
-                );
-              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                console.log("Media error, attempting recovery...");
-                try {
-                  hls.recoverMediaError();
-                  return;
-                } catch (e) {
-                  console.error("Failed to recover from media error:", e);
-                }
-              } else {
-                setError(`Ошибка HLS: ${data.type}`);
-              }
-              setIsLoading(false);
+        switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+            console.log("Network error detected");
+            if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
+                setError("Не удалось загрузить манифест видео. Возможно, истек срок действия ссылки или проблема с CORS.");
+            } else if (retryCount < 3) {
+                console.log(`Retrying network error in ${3000}ms...`);
+                setTimeout(() => createHLSPlayer(retryCount + 1), 3000);
+                return;
             } else {
-              // Не фатальные ошибки - просто логируем
-              console.warn("Non-fatal HLS error:", data);
+                setError("Не удалось загрузить видео из-за проблем с сетью");
             }
-          });
-
-          hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-            console.log(`HLS media attached (attempt ${retryCount + 1})`);
-          });
-        } else {
-          console.error("HLS is not supported");
-          setError("HLS не поддерживается в этом браузере");
-          setIsLoading(false);
+            break;
+            
+            case Hls.ErrorTypes.MEDIA_ERROR:
+            console.log("Media error, attempting recovery...");
+            try {
+                hls.recoverMediaError();
+                return;
+            } catch (e) {
+                console.error("Failed to recover from media error:", e);
+                if (retryCount < 3) {
+                setTimeout(() => createHLSPlayer(retryCount + 1), 2000);
+                return;
+                }
+                setError("Ошибка воспроизведения медиа");
+            }
+            break;
+            
+            default:
+            setError(`Ошибка HLS плеера: ${data.details || 'Неизвестная ошибка'}`);
         }
-      } catch (error) {
-        console.error("Failed to load hls.js:", error);
-        setError("Не удалось загрузить HLS плеер");
         setIsLoading(false);
-      }
-    }
+        } else {
+        console.warn("Non-fatal HLS error:", data);
+        }
+    });
+
+    hls.loadSource(hlsUrl);
+    hls.attachMedia(video);
+
+    loadingTimeoutRef.current = setTimeout(() => {
+        if (isLoading) {
+        console.error("HLS loading timeout reached");
+        if (retryCount < 3) {
+            createHLSPlayer(retryCount + 1);
+        } else {
+            setError("Превышено время ожидания загрузки видео. Проверьте подключение к интернету.");
+            setIsLoading(false);
+        }
+        }
+    }, 30000);
   };
 
-  // Инициализация HLS
   useEffect(() => {
-    createHLSPlayer(0);
+    if (hlsUrl) {
+      createHLSPlayer(0);
+    }
+    return cleanup;
+  }, [hlsUrl, hlsSegments]);
 
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [hlsUrl]);
-
-  // Обработчики событий видео
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
     const handleLoadedMetadata = () => {
+      console.log("Video metadata loaded, duration:", video.duration);
       setDuration(video.duration);
-      setIsLoading(false);
+      if (!hlsRef.current) {
+        setIsLoading(false);
+      }
     };
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
-    const handleWaiting = () => setIsLoading(true);
-    const handleCanPlay = () => setIsLoading(false);
-    const handleError = () => {
-      setError("Ошибка воспроизведения видео.");
+    const handleWaiting = () => {
+      console.log("Video waiting for data...");
+      if(video.readyState < 3) {
+        setIsLoading(true);
+      }
+    };
+    const handleCanPlay = () => {
+      console.log("Video can play");
+      setIsLoading(false);
+    };
+    const handleError = (e: any) => {
+      console.error("Video element error:", e, video.error);
+      const errorMessage = video.error ? 
+        `Ошибка воспроизведения: ${video.error.message} (код: ${video.error.code})` :
+        "Ошибка воспроизведения видео";
+      setError(errorMessage);
       setIsLoading(false);
     };
 
@@ -341,7 +305,10 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play().catch(console.error);
+        videoRef.current.play().catch((err) => {
+          console.error("Play failed:", err);
+          setError("Не удалось воспроизвести видео");
+        });
       }
     }
   };
@@ -371,14 +338,18 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
   };
 
   const toggleFullscreen = () => {
+    const playerContainer = videoRef.current?.parentElement?.parentElement;
+    if (!playerContainer) return;
+
     if (!document.fullscreenElement) {
-      videoRef.current?.requestFullscreen();
+      playerContainer.requestFullscreen().catch(console.error);
     } else {
-      document.exitFullscreen();
+      document.exitFullscreen().catch(console.error);
     }
   };
-
+  
   const handleRetry = () => {
+    setError(null);
     createHLSPlayer(0);
   };
 
@@ -389,7 +360,7 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
           <h3 className="text-xl font-semibold mb-2">Ошибка загрузки</h3>
           <p className="text-slate-300 text-sm leading-relaxed mb-4">{error}</p>
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-center">
             <Button
               onClick={handleRetry}
               className="bg-amber-600 hover:bg-amber-700"
@@ -405,6 +376,15 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
               Перезагрузить страницу
             </Button>
           </div>
+          <details className="mt-4 text-left">
+            <summary className="cursor-pointer text-xs text-slate-400">
+              Техническая информация
+            </summary>
+            <div className="text-xs text-slate-400 mt-2 break-all">
+              <p>URL: {hlsUrl}</p>
+              <p>Попыток: {retryCountRef.current + 1}</p>
+            </div>
+          </details>
         </div>
       </div>
     );
@@ -417,15 +397,15 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
           ref={videoRef}
           className="w-full h-full object-cover"
           poster={poster}
-          controlsList="nodownload nofullscreen noremoteplayback"
-          disablePictureInPicture
-          crossOrigin="anonymous"
+          controls={false}
+          onClick={togglePlay}
+          onDoubleClick={toggleFullscreen}
           playsInline
+          preload="metadata"
         />
 
-        {/* Loading Overlay */}
         {isLoading && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center pointer-events-none">
             <div className="text-center text-white">
               <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin" />
               <p className="mb-2">{loadingMessage}</p>
@@ -438,40 +418,35 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
           </div>
         )}
 
-        {/* Controls Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          {/* Play/Pause Button */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="w-20 h-20 rounded-full bg-black/40 hover:bg-black/60 text-white border-2 border-white/20"
-              onClick={togglePlay}
-              disabled={isLoading}
-            >
-              {isPlaying ? (
-                <Pause className="w-10 h-10" />
-              ) : (
-                <Play className="w-10 h-10 ml-1" />
-              )}
-            </Button>
-          </div>
-
-          {/* Bottom Controls */}
-          <div className="absolute bottom-0 left-0 right-0 p-6">
-            {/* Progress Bar */}
-            <div className="mb-4">
-              <Slider
-                value={[currentTime]}
-                max={duration || 100}
-                step={1}
-                onValueChange={handleSeek}
-                disabled={isLoading}
-                className="w-full [&>span:first-child]:h-1.5 [&>span:first-child]:bg-white/30 [&_[role=slider]]:bg-amber-500 [&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:border-2 [&_[role=slider]]:border-white [&>span:first-child_span]:bg-amber-500"
-              />
+        <div className="absolute inset-0 flex flex-col justify-between opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/60 to-transparent">
+            <div></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    className="w-20 h-20 rounded-full bg-black/40 hover:bg-black/60 text-white border-2 border-white/20"
+                    onClick={togglePlay}
+                    disabled={isLoading}
+                    aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                    {isPlaying ? (
+                        <Pause className="w-10 h-10" />
+                    ) : (
+                        <Play className="w-10 h-10 ml-1" />
+                    )}
+                </Button>
             </div>
 
-            {/* Control Buttons */}
+          <div className="p-4 space-y-2">
+            <Slider
+              value={[currentTime]}
+              max={duration || 100}
+              step={1}
+              onValueChange={handleSeek}
+              disabled={isLoading}
+              aria-label="Video progress"
+              className="w-full [&>span:first-child]:h-1.5 [&>span:first-child]:bg-white/30 [&_[role=slider]]:bg-amber-500 [&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:border-2 [&_[role=slider]]:border-white [&>span:first-child_span]:bg-amber-500"
+            />
             <div className="flex items-center justify-between text-white">
               <div className="flex items-center space-x-3">
                 <Button
@@ -480,6 +455,7 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
                   onClick={togglePlay}
                   disabled={isLoading}
                   className="hover:bg-white/20"
+                  aria-label={isPlaying ? "Pause" : "Play"}
                 >
                   {isPlaying ? (
                     <Pause className="w-6 h-6" />
@@ -494,8 +470,9 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
                     variant="ghost"
                     onClick={toggleMute}
                     className="hover:bg-white/20"
+                    aria-label={isMuted ? "Unmute" : "Mute"}
                   >
-                    {isMuted ? (
+                    {isMuted || volume === 0 ? (
                       <VolumeX className="w-5 h-5" />
                     ) : (
                       <Volume2 className="w-5 h-5" />
@@ -507,12 +484,13 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
                       max={100}
                       step={1}
                       onValueChange={handleVolumeChange}
+                      aria-label="Volume"
                       className="[&>span:first-child]:h-1 [&>span:first-child]:bg-white/30 [&_[role=slider]]:bg-white [&_[role=slider]]:w-3 [&_[role=slider]]:h-3 [&_[role=slider]]:border-0 [&>span:first-child_span]:bg-white"
                     />
                   </div>
                 </div>
 
-                <span className="text-sm font-medium bg-black/40 px-2 py-1 rounded">
+                <span className="text-sm font-medium tabular-nums bg-black/40 px-2 py-1 rounded">
                   {formatDuration(currentTime)} / {formatDuration(duration)}
                 </span>
               </div>
@@ -523,6 +501,7 @@ export function HLSPlayer({ hlsUrl, poster }: HLSPlayerProps) {
                   variant="ghost"
                   onClick={toggleFullscreen}
                   className="hover:bg-white/20"
+                  aria-label="Fullscreen"
                 >
                   <Maximize className="w-5 h-5" />
                 </Button>

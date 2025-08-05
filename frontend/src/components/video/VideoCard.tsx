@@ -12,6 +12,7 @@ import {
   formatPrice,
   getAttributeByType,
 } from "@/utils/videoHelpers";
+import Image from "next/image";
 
 interface VideoCardProps {
   video: VideoPreview;
@@ -25,9 +26,11 @@ export function VideoCard({ video }: VideoCardProps) {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow group">
       <div className="relative">
-        <img
+        <Image
           src={video.preview_url || "/placeholder.svg?height=200&width=300"}
           alt={video.title}
+          width={300}
+          height={192}
           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
         />
 
