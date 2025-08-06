@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, Loader2, Save, User, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, User, Lock, LogOut } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/navigation";
@@ -340,7 +340,17 @@ export default function ProfilePage() {
               <CardTitle className="text-red-600">Выход из аккаунта</CardTitle>
               <CardDescription>Завершить текущую сессию</CardDescription>
             </CardHeader>
-            <CardContent></CardContent>
+            <CardContent>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={handleLogout}
+                disabled={isUpdating}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Выйти из аккаунта
+              </Button>
+            </CardContent>
           </Card>
         </div>
       </div>

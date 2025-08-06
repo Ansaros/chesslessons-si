@@ -74,6 +74,19 @@ export default function VideoPage({
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
+          <div className="flex justify-between items-center mb-4">
+            <Button variant="outline" asChild>
+              <Link href="/videos">← Все видео</Link>
+            </Button>
+            <div className="hidden md:flex items-center gap-2 text-sm text-slate-500">
+              <span>Горячие клавиши:</span>
+              <Badge variant="outline" className="font-mono px-2">Пробел</Badge>
+              <span>- пауза,</span>
+              <Badge variant="outline" className="font-mono px-2">←</Badge>
+              <Badge variant="outline" className="font-mono px-2">→</Badge>
+              <span>- перемотка</span>
+            </div>
+          </div>
           {/* Video Player */}
           <div className="mb-6">
             {canWatch ? (
@@ -162,18 +175,6 @@ export default function VideoPage({
               <p className="text-slate-700 leading-relaxed text-lg mb-6">
                 {video.description}
               </p>
-
-              {/* Navigation */}
-              <div className="pt-6 border-t border-slate-200">
-                <div className="flex justify-between items-center">
-                  <Button variant="outline" asChild>
-                    <Link href="/videos">← Все видео</Link>
-                  </Button>
-                  <div className="text-sm text-slate-500">
-                    Горячие клавиши: Пробел - пауза, ← → - перемотка
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -22,6 +22,8 @@ interface HLSPlayerProps {
   poster?: string;
   hlsSegments?: Record<string, string>; // Optional: pre-signed segment URLs
 }
+
+const SEEK_TIME_SECONDS = 5;
 
 export function HLSPlayer({ hlsUrl, poster, hlsSegments }: HLSPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -300,18 +302,45 @@ export function HLSPlayer({ hlsUrl, poster, hlsSegments }: HLSPlayerProps) {
     };
   }, []);
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
+      if (videoRef.current.paused) {
         videoRef.current.play().catch((err) => {
           console.error("Play failed:", err);
           setError("Не удалось воспроизвести видео");
         });
+      } else {
+        videoRef.current.pause();
       }
     }
-  };
+  }, [setError]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (videoRef.current) {
+        if (event.key === " ") {
+          event.preventDefault();
+          togglePlay();
+        } else if (event.key === "ArrowLeft") {
+          videoRef.current.currentTime -= SEEK_TIME_SECONDS;
+        } else if (event.key === "ArrowRight") {
+          videoRef.current.currentTime += SEEK_TIME_SECONDS;
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [togglePlay]);
+
 
   const handleSeek = (value: number[]) => {
     if (videoRef.current) {

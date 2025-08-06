@@ -241,9 +241,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">♔</span>
-                </div>
+                <Image
+                  src="/images/chess-logo.jpg"
+                  alt="Chester Chess Club"
+                  width={32}
+                  height={32}
+                  className="w-8 h-8 rounded-full object-cover shadow-lg"
+                />
                 <h3 className="text-xl font-bold">ChessMaster</h3>
               </div>
               <p className="text-slate-300">
