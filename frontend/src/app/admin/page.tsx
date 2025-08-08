@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from 'next/navigation';
@@ -124,7 +125,7 @@ const LogoutButton = ({
   );
 };
 
-export default function AdminPage() {
+function AdminDashboard() {
   const {
     isAdmin,
     isLoading,
@@ -250,7 +251,7 @@ export default function AdminPage() {
             "Ошибка сети или сервера. Проверьте ваше соединение или попробуйте позже.";
         }
         else if (error.response) {
-          errorMessage = `Ошибка: ${(error.response.data as any)?.detail || error.message
+          errorMessage = `Ошибка: ${(error.response.data as { detail: string })?.detail || error.message
             }`;
         }
       }
@@ -965,5 +966,17 @@ export default function AdminPage() {
         </Dialog>
       )}
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    }>
+      <AdminDashboard />
+    </Suspense>
   );
 }

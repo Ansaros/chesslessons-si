@@ -136,7 +136,7 @@ export default function PaymentPage() {
               Оплата успешна!
             </CardTitle>
             <CardDescription>
-              Доступ к видео "{video?.title}" активирован
+              Доступ к видео &quot;{video?.title}&quot; активирован
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -398,7 +398,7 @@ export default function PaymentPage() {
                     {selectedMethod === "bank" && (
                       <div className="p-4 bg-blue-50 rounded-lg">
                         <p className="text-sm text-blue-800 mb-2">
-                          После нажатия кнопки "Оплатить" вы получите реквизиты
+                          После нажатия кнопки &quot;Оплатить&quot; вы получите реквизиты
                           для банковского перевода.
                         </p>
                         <p className="text-xs text-blue-600">
@@ -442,7 +442,7 @@ export default function PaymentPage() {
                   </form>
 
                   <div className="mt-4 text-xs text-slate-500 text-center">
-                    Нажимая "Оплатить", вы соглашаетесь с{" "}
+                    Нажимая &quot;Оплатить&quot;, вы соглашаетесь с{" "}
                     <Link
                       href="/terms"
                       className="text-amber-600 hover:text-amber-700"

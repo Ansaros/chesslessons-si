@@ -25,7 +25,7 @@ export function attachAuthInterceptors(instance: AxiosInstance) {
       };
 
       const status = error.response?.status;
-      const detail = (error.response?.data as any)?.detail;
+      const detail = (error.response?.data as { detail: string })?.detail;
       const isTokenExpired403 =
         status === 403 && detail === "Token has expired";
       const isUnauthorized401 = status === 401;

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -69,8 +68,6 @@ const subscriptionPlans = [
 ];
 
 export default function SubscriptionPage() {
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -147,7 +144,9 @@ export default function SubscriptionPage() {
 
                 <Button
                   className={`w-full py-3 text-lg ${plan.buttonColor}`}
-                  onClick={() => setSelectedPlan(plan.id)}
+                  onClick={() => {
+                    /* Placeholder for future implementation */
+                  }}
                 >
                   {plan.popular && <Crown className="w-5 h-5 mr-2" />}
                   Выбрать план

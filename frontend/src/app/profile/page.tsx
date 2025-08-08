@@ -69,7 +69,7 @@ export default function ProfilePage() {
       await updateProfile(selectedLevel);
       setSuccess({ ...success, profile: "Профиль успешно обновлен" });
       setSelectedLevel("");
-    } catch (error: any) {
+    } catch {
       setErrors({ ...errors, profile: "Ошибка при обновлении профиля" });
     }
   };
@@ -97,7 +97,7 @@ export default function ProfilePage() {
       await updatePassword(passwordData.password);
       setSuccess({ ...success, password: "Пароль успешно изменен" });
       setPasswordData({ password: "", confirmPassword: "" });
-    } catch (error: any) {
+    } catch {
       setErrors({ ...errors, password: "Ошибка при смене пароля" });
     }
   };

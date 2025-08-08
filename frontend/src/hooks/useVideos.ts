@@ -7,7 +7,6 @@ import type { VideoFilters } from "@/types/video";
 export const useVideos = (initialFilters?: VideoFilters) => {
   const {
     videos: allVideos,
-    total: totalVideos,
     isLoading,
     filters,
     loadVideos,

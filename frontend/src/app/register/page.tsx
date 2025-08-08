@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,9 +26,9 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
+import { isAxiosError } from "axios";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const { register, isLoading, chessLevels, loadChessLevels } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -67,8 +66,11 @@ export default function RegisterPage() {
     try {
       await register(formData.email, formData.password, formData.skillLevel);
       window.location.href = "/profile";
-    } catch (err: any) {
-      if (err.response?.data?.detail?.includes("email")) {
+    } catch (err) {
+      if (
+        isAxiosError(err) &&
+        (err.response?.data as { detail: string })?.detail?.includes("email")
+      ) {
         setError("Пользователь с таким email уже существует");
       } else {
         setError("Произошла ошибка при регистрации");
@@ -85,8 +87,8 @@ export default function RegisterPage() {
             <Image
               src="/images/chess-logo.jpg"
               alt="Chester Chess Club"
-              width={48}
-              height={48}
+              width={64}
+              height={64}
               className="w-12 h-12 rounded-full object-cover shadow-lg"
             />
             <h1 className="text-2xl font-bold text-slate-800">

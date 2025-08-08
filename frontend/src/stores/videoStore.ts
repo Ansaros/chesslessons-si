@@ -31,7 +31,7 @@ interface VideoActions {
   setVideoLoading: (loading: boolean) => void;
 }
 
-export const useVideoStore = create<VideoState & VideoActions>((set, get) => ({
+export const useVideoStore = create<VideoState & VideoActions>((set) => ({
   // Начальное состояние
   videos: [],
   total: 0,

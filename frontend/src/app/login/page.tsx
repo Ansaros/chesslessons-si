@@ -3,7 +3,6 @@
 import type React from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,9 +17,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import Image from "next/image";
+import { isAxiosError } from "axios";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -42,8 +41,8 @@ export default function LoginPage() {
       } else {
         window.location.href = "/videos";
       }
-    } catch (err: any) {
-      if (err.response?.status === 401) {
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 401) {
         setError("Неверный email или пароль");
       } else {
         setError("Произошла ошибка при входе");

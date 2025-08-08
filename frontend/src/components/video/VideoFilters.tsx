@@ -29,7 +29,7 @@ export function VideoFilters({ filters, onFiltersChange }: VideoFiltersProps) {
     }, 300); // Задержка 300мс для избежания частых обновлений
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, filters, onFiltersChange]);
 
   const handleAccessLevelChange = (value: string) => {
     const accessLevel =
