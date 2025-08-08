@@ -1,0 +1,10 @@
+services:
+  frontend:
+    container_name: frontend
+    build:
+      context: ./
+    ports:
+      - "8081:3001" # Изменяем внешний порт на 8081
+    env_file:
+      - .env # Добавляем файл окружения
+    restart: unless-stopped # Оставляем только одну директиву restart
